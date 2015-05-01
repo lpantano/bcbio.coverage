@@ -1,0 +1,3 @@
+ipython-cluster-helper
+bcbio-nextgen
+ichwrapper
