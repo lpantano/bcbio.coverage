@@ -1,4 +1,5 @@
 import os
+import os.path as op
 import pandas as pd
 # from collections import Counter
 
@@ -30,7 +31,7 @@ class cov_class:
         df["region"] = self.name
         df["size"] = self.size
         df["sample"] = self.sample
-        df.to_csv(out_file, mode='a', index=False, header=None)
+        df.to_csv(out_file, mode='a', index=False)
         #return df
 
 def _get_exome_coverage_stats(fn, sample, out_file):
@@ -49,13 +50,14 @@ def _get_exome_coverage_stats(fn, sample, out_file):
             stats.save(int(cols[-4]), float(cols[-1]))
             tmp_region = cur_region
         stats.dataframe(out_file)
-    # return [st.dataframe(out_file) for st in stats.values()]
 
-def _calc_total_exome_coverage(in_bam, args):
+def _calc_total_exome_coverage(data, args):
+    in_bam = data['bam']
+    out_dir = args.out
     bed_file = args.region
-    sample = os.path.splitext(os.path.basename(in_bam))[0]
-    cov_file = sample + ".dat"
-    parse_file = sample + "_cov.csv"
+    sample = op.splitext(os.path.basename(in_bam))[0]
+    cov_file = op.join(out_dir, sample + ".dat")
+    parse_file = op.join(out_dir, sample + "_cov.csv")
     if not file_exists(cov_file):
         with file_transaction(cov_file) as cov_tx:
             cmd = ("bedtools coverage -abam {in_bam} -b {bed_file} -hist > {cov_tx}")
@@ -64,6 +66,5 @@ def _calc_total_exome_coverage(in_bam, args):
         with file_transaction(parse_file) as out_tx:
             logger.info('parsing coverage: %s' % sample)
             _get_exome_coverage_stats(cov_file, sample, out_tx)
-    # return df
     return cov_file
 

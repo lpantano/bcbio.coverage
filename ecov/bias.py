@@ -2,6 +2,7 @@
 calculate coverage across a list of regions
 """
 import os
+import os.path as op
 
 import six
 from argparse import ArgumentParser
@@ -37,7 +38,7 @@ def _calc_regional_coverage(in_bam, samplename, chrom, start, end, work_dir):
     tx_tmp_file = os.path.join(work_dir, "coverage-%s-%s.txt" % (samplename, coords.replace(":", "_")))
     cmd = ("samtools view -b {in_bam} {coords} | "
            "bedtools coverage -abam - -b {region_file} -d > {tx_tmp_file}")
-    do.run(cmd.format(**locals()), "Plotting coverage for %s %s" % (samplename, coords))
+    do.run(cmd.format(**locals()), "region %s" % coords)
     names = ["chom", "start", "end", "offset", "coverage"]
     df = pd.io.parsers.read_table(tx_tmp_file, sep="\t", header=None,
                                   names=names)
@@ -60,8 +61,8 @@ def _calc_regional_coverage(in_bam, samplename, chrom, start, end, work_dir):
     # print df
     return df
 
-def _sample_bed(bed_file, n=1000, seed=None):
-    out_file = os.path.splitext(bed_file)[0] + "-sample.bed"
+def _sample_bed(bed_file, n=1000, seed=""):
+    out_file = op.splitext(bed_file)[0] + "-sample.bed"
     if seed:
         seed = " -seed " + str(seed)
     cmd = ("bedtools sample -n {n} -i {bed_file} {seed} > {tx_out} ")
@@ -71,7 +72,7 @@ def _sample_bed(bed_file, n=1000, seed=None):
         do.run(cmd.format(**locals()), "Sampling %s from %s" % (n, bed_file))
     return out_file
 
-def calculate_bias_over_multiple_regions(in_bam, args):
+def calculate_bias_over_multiple_regions(data, args):
     """
     given a list of bcbio samples and a bed file or BedTool of regions,
     makes a plot of the coverage in the regions for the set of samples
@@ -81,9 +82,9 @@ def calculate_bias_over_multiple_regions(in_bam, args):
     Adapted form Rory Kirchner (@roryk)
     """
     PAD = 0
-
-    samplename = os.path.splitext(os.path.basename(in_bam))[0]
-    out_file = os.path.splitext(os.path.basename(args.out))[0] + "-%s.tsv" % samplename
+    in_bam = data['bam']
+    samplename = op.splitext(os.path.basename(in_bam))[0]
+    out_file = op.join(args.out, "%s_bias.csv" % samplename)
     if file_exists(out_file):
         return out_file
     if isinstance(args.region, six.string_types):
@@ -98,7 +99,7 @@ def calculate_bias_over_multiple_regions(in_bam, args):
             start = max(line.start - PAD, 0)
             end = line.end + PAD
             df = _calc_regional_coverage(in_bam, samplename, chrom,
-                                            start, end, os.path.dirname(tx_out_file))
+                                            start, end, op.dirname(tx_out_file))
             df.to_csv(tx_out_file, mode='a', index=False, header=None)
     return out_file
 
