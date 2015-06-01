@@ -23,4 +23,18 @@ will have `*_bias.tsv` file.
 this will generate `*cg-depth-parse.tsv` for each sample inside `cg` folder.
 
 
+# Installation
 
+if you already have a bcbio installation working:
+
+`git clone https://github.com/lpantano/exomeCov.git`
+`git clone https://github.com/lpantano/ich-wrapper.git`
+
+export PYTHONPATH=$PATH_to_exomeCov:$PATH_to_ich-wrapper
+
+# Usage
+make sure to use the bcbio python:
+
+`python /$PATH_to_exomeCov/scripts/coverage.py`
+
+You can do an exec and add it to your path modifying the file `scripts/coverage`
