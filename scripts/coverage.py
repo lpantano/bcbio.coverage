@@ -71,7 +71,7 @@ def _prepare_samples(args):
         if sample.endswith("yaml"):
             continue
         dt = {}
-        dt['name'] = splitext_plus(op.basename(sample))[0]
+        dt['name'] = splitext_plus(op.basename(sample))[0].replace("-ready", "")
         dt['config'] = config
         dt['bam'] = op.abspath(sample)
         if vcf_files:
@@ -94,7 +94,7 @@ def bias_exome_coverage(data, args):
 def average_exome_coverage(data, args):
     # dfs = [_calc_total_exome_coverage(bam, bed_file) for bam in in_bams]
     safe_makedir(args.out)
-    resources = {'name': 'bedtools', 'mem': 12, 'cores': 1}
+    resources = {'name': 'bedtools', 'mem': 26, 'cores': 1}
     data = _update_algorithm(data, resources)
     cluster.send_job(_calc_total_exome_coverage, data, args, resources)
     # df = rbind(dfs)
