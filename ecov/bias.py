@@ -84,7 +84,7 @@ def calculate_bias_over_multiple_regions(data, args):
     PAD = 0
     in_bam = data['bam']
     samplename = op.splitext(os.path.basename(in_bam))[0]
-    out_file = op.join(args.out, "%s_bias.csv" % samplename)
+    out_file = op.join(args.out, "%s_bias.tsv" % samplename)
     if file_exists(out_file):
         return out_file
     if isinstance(args.region, six.string_types):
@@ -92,7 +92,7 @@ def calculate_bias_over_multiple_regions(data, args):
         region_bed = pybedtools.BedTool(region_bed)
     with file_transaction(out_file) as tx_out_file:
         with open(tx_out_file, 'w') as in_handle:
-            print >> in_handle, "mean,ntdow,ntup,region,sample,size,std"
+            print >> in_handle, "mean\tntdow\tntup\tregion\tsample\tsize\tstd"
 
         for line in region_bed:
             chrom = line.chrom
@@ -100,6 +100,6 @@ def calculate_bias_over_multiple_regions(data, args):
             end = line.end + PAD
             df = _calc_regional_coverage(in_bam, samplename, chrom,
                                             start, end, op.dirname(tx_out_file))
-            df.to_csv(tx_out_file, mode='a', index=False, header=None)
+            df.to_csv(tx_out_file, mode='a', index=False, header=None, sep="\t")
     return out_file
 

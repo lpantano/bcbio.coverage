@@ -31,7 +31,7 @@ class cov_class:
         df["region"] = self.name
         df["size"] = self.size
         df["sample"] = self.sample
-        df.to_csv(out_file, mode='a', index=False)
+        df.to_csv(out_file, mode='a', index=False, sep="\t")
         #return df
 
 def _get_exome_coverage_stats(fn, sample, out_file):
@@ -57,7 +57,7 @@ def _calc_total_exome_coverage(data, args):
     bed_file = args.region
     sample = op.splitext(os.path.basename(in_bam))[0]
     cov_file = op.join(out_dir, sample + ".dat")
-    parse_file = op.join(out_dir, sample + "_cov.csv")
+    parse_file = op.join(out_dir, sample + "_cov.tsv")
     if not file_exists(cov_file):
         with file_transaction(cov_file) as cov_tx:
             cmd = ("bedtools coverage -abam {in_bam} -b {bed_file} -hist > {cov_tx}")

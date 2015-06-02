@@ -19,6 +19,7 @@ setup(name='ecov',
         'Topic :: Scientific/Engineering :: Bio-Informatics'
       ],
       keywords='custom pipelines',
+      package_data={'ecov': ['*.Rmd']},
       # url='http://github.com/lpantano/ich-wrapper',
       author='Lorena Pantano',
       author_email='lpantano@iscb.org',

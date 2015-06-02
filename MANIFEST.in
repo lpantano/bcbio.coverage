@@ -1,2 +1,3 @@
 include requirements.txt
-recursive-include ichwrapper *.py
+recursive-include ecov *.py
+recursive-include ecov *.Rmd

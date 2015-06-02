@@ -1,23 +1,26 @@
 import os
+import os.path as op
 
 from collections import defaultdict
 import pandas as pd
 
 from bcbio.provenance import do
 from bcbio.distributed.transaction import file_transaction
-from bcbio.utils import file_exists
+from bcbio.utils import file_exists, safe_makedir
 
 
 def calculate_bam(args):
     """
     samtools flagstat output
     """
+    out_dir = safe_makedir(args.out)
+    out_file = op.join(out_dir, "flagstat.tsv")
     stats = defaultdict(list)
     samples = []
     for bam in args.bams:
         # sample = os.path.splitext(bam)[0].split("-")[0]
-        sample = os.path.basename(bam).split("-")[0]
-        out_sample = sample + ".flagstat"
+        sample = os.path.basename(bam).split("-")[0].replace(".bam", "")
+        out_sample = op.join(out_dir, sample + ".flagstat")
         if not file_exists(out_sample):
             with file_transaction(out_sample) as tx_out:
                 cmd = ("samtools flagstat {bam} > {tx_out}")
@@ -28,7 +31,7 @@ def calculate_bam(args):
                     stats[line.strip().split(" + 0 ")[1].split("(")[0].strip()].append(line.strip().split(" + ")[0])
                 # print stats[sample]
         samples.append(sample)
-    with open(args.out, 'w') as out_handle:
+    with open(out_file, 'w') as out_handle:
         out_handle.write("\t".join(['measure'] + samples) + '\n')
         for feature in stats:
             out_handle.write("\t".join([feature] + stats[feature]) + "\n")

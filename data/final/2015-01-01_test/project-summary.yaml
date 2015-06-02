@@ -1,0 +1,60 @@
+date: '2015-05-27 16:36:36.736398'
+upload: /scratch/lpantano/brisbane/analysis/final
+bcbio_system: ''
+samples:
+- description: sample1
+  dirs:
+    fastq: null
+    galaxy: /cm/shared/apps/bcbio/20150103-devel/data/galaxy
+    work: /scratch/lpantano/brisbane/analysis/work
+  genome_build: GRCh37
+  genome_resources:
+    aliases:
+      ensembl: homo_sapiens_vep_79_GRCh37
+      human: true
+      snpeff: GRCh37.75
+    rnaseq:
+      dexseq: ../rnaseq/ref-transcripts.dexseq.gff3
+      gene_bed: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/rnaseq/ref-transcripts.bed
+      rRNA_fa: ../rnaseq/rRNA.fa
+      refflat: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/rnaseq/ref-transcripts.refFlat
+      transcriptome_index:
+        tophat: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/rnaseq/tophat/GRCh37_transcriptome.ver
+      transcripts: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/rnaseq/ref-transcripts.gtf
+      transcripts_mask: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/rnaseq/ref-transcripts-mask.gtf
+    variation:
+      ancestral: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/variation/human_ancestor.fa.gz
+      cosmic: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/variation/cosmic-v68-GRCh37.vcf.gz
+      dbnsfp: ../variation/dbNSFP_v2.7.gz
+      dbsnp: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/variation/dbsnp_138.vcf.gz
+      lcr: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/variation/LCR.bed.gz
+      qsignature: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/variation/qsignature.vcf
+      sv_repeat: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/variation/sv_repeat_telomere_centromere.bed
+      train_1000g: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/variation/1000G_phase1.snps.high_confidence.vcf.gz
+      train_hapmap: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/variation/hapmap_3.3.vcf.gz
+      train_indels: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/variation/Mills_and_1000G_gold_standard.indels.vcf.gz
+      train_omni: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/variation/1000G_omni2.5.vcf.gz
+    version: 19
+  metadata:
+    batch: batch2
+    phenotype: tumor
+  sam_ref: /cm/shared/apps/bcbio/20150103-devel/data/genomes/Hsapiens/GRCh37/seq/GRCh37.fa
+  summary:
+    metrics:
+      '%GC': '39'
+      Duplicates: '261915553'
+      Duplicates pct: 13.8751%
+      Mapped reads: '1871958934'
+      Mapped reads pct: 99.1681%
+      Median insert size: '341'
+      Name: APGI1955_Tumor
+      Quality format: standard
+      Sequence length: 30-101
+      Sequences flagged as poor quality: '0'
+      Total reads: '1887662692'
+      Transition/Transversion: '1.9068'
+      Variations (heterozygous): 4781
+      Variations (homozygous): 17
+      Variations (in dbSNP): 626
+      Variations (in dbSNP) pct: 13.0%
+      Variations (total): 4798
