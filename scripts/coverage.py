@@ -146,7 +146,7 @@ def complete(args):
     if args.scheduler:
         cluster = ['-n', args.numcores, '-s', args.scheduler, '-q', args.queue, '-p', args.tag, '-t', args.paralleltype]
         if args.resources:
-            cluster += ['-r', args.resources]
+            cluster += ['-r'] + args.resources
     cluster = map(str, cluster)
 
     print "doing basic-bam"
