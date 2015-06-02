@@ -144,7 +144,9 @@ def complete(args):
     assert yaml_file, "No bcbio yaml file found."
     cluster = []
     if args.scheduler:
-        cluster = ['-n', args.numcores, '-s', args.scheduler, '-q', args.queue, '-p', args.tag, '-t', args.paralleltype, '-r', args.resources]
+        cluster = ['-n', args.numcores, '-s', args.scheduler, '-q', args.queue, '-p', args.tag, '-t', args.paralleltype]
+        if args.resources:
+            cluster += ['-r', args.results]
     cluster = map(str, cluster)
 
     print "doing basic-bam"
