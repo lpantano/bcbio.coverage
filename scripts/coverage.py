@@ -142,6 +142,10 @@ def complete(args):
 
     assert len(vcf) == len(bam), "no paired bam/vcf files found. %s %s" % (vcf, bam)
     assert yaml_file, "No bcbio yaml file found."
+    cluster = []
+    if args.scheduler:
+        cluster = ['-n', args.numcores, '-s', args.scheduler, '-q', args.queue, '-p', args.tag, '-t', args.paralleltype, '-r', args.resources]
+    cluster = map(str, cluster)
 
     print "doing basic-bam"
     new_args = ['--run', 'basic-bam', '--out', 'basic-bam'] + bam
@@ -154,17 +158,17 @@ def complete(args):
     bcbio_metrics(new_args)
 
     print "doing stats-coverage"
-    new_args = ['--run', 'stats-coverage', '--out', 'coverage', '--region', args.region] + bam
+    new_args = ['--run', 'stats-coverage', '--out', 'coverage', '--region', args.region] + bam + cluster
     new_args = params().parse_args(new_args)
     average_exome_coverage(data, new_args)
 
     print "doing bias-coverage"
-    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region] + bam
+    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region] + bam + cluster
     new_args = params().parse_args(new_args)
     bias_exome_coverage(data, new_args)
 
     print "doing cg-depth in vcf files"
-    new_args = ['--run', 'cg-vcf', '--out', 'cg', '--region', args.region, '--reference', args.reference] + bam + vcf
+    new_args = ['--run', 'cg-vcf', '--out', 'cg', '--region', args.region, '--reference', args.reference] + bam + vcf + cluster
     new_args = params().parse_args(new_args)
     calculate_cg_depth_coverage(data, new_args)
 
