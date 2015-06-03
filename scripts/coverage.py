@@ -30,6 +30,7 @@ from ecov.bias import calculate_bias_over_multiple_regions
 from ecov.variants import calc_variants_stats
 from ecov.select import save_multiple_regions_coverage
 from ecov.basic import calculate_bam, calculate_tstv
+from ecov.fastqc import merge_fastq
 
 def _find_bam(bam_files, sample):
     """
@@ -67,15 +68,20 @@ def _prepare_samples(args):
     data = []
     vcf_files = [fn for fn in args.bams if fn.endswith('vcf.gz')]
     bam_files = [fn for fn in args.bams if fn.endswith('bam')]
+    fastqc_files = [fn for fn in args.bams if fn.endswith('data.txt')]
+    if not bam_files:
+        bam_files = fastqc_files
     for sample in bam_files:
         if sample.endswith("yaml"):
             continue
         dt = {}
-        dt['name'] = splitext_plus(op.basename(sample))[0].replace("-ready", "")
+        dt['name'] = splitext_plus(op.basename(sample))[0].replace("-ready", "").replace("_data", "")
         dt['config'] = config
         dt['bam'] = op.abspath(sample)
         if vcf_files:
             dt['vcf'] = _find_bam(vcf_files, sample)
+        if fastqc_files:
+            dt['fastqc'] = _find_bam(fastqc_files, sample)
         data.append([dt])
     return data
 
@@ -138,10 +144,13 @@ def complete(args):
     data = _prepare_samples(args)
     vcf = [d[0]['vcf'] for d in data]
     bam = [d[0]['bam'] for d in data]
+    fastqc = [d[0]['fastqc'] for d in data]
     yaml_file = [fn for fn in args.bams if fn.endswith("yaml")]
 
     assert len(vcf) == len(bam), "no paired bam/vcf files found. %s %s" % (vcf, bam)
     assert yaml_file, "No bcbio yaml file found."
+    assert fastqc, "No fastqc files"
+
     cluster = []
     if args.scheduler:
         cluster = ['-n', args.numcores, '-s', args.scheduler, '-q', args.queue, '-p', args.tag, '-t', args.paralleltype]
@@ -174,6 +183,11 @@ def complete(args):
     new_args = params().parse_args(new_args)
     calculate_cg_depth_coverage(data, new_args)
 
+    print "doing fastqc parsing"
+    new_args = ['--run', 'fastqc', '--out', 'fastqc'] + fastqc
+    new_args = params().parse_args(new_args)
+    merge_fastq(data, new_args)
+
     print "doing report"
     new_args = ['--run', 'report', '--out', 'report']
     new_args = params().parse_args(new_args)
@@ -187,7 +201,7 @@ def params():
     parser.add_argument("--reference", help="genome fasta file.")
     parser.add_argument("--out", help="output file.")
     parser.add_argument("bams", nargs="*", help="Bam files.")
-    parser.add_argument("--run", required=True, help="type of analysis", choices=['complete', 'report', 'metrics', 'basic-bam', 'cg-vcf', 'stats-coverage', 'tstv', 'bias-coverage', 'plot'])
+    parser.add_argument("--run", required=True, help="type of analysis", choices=['complete', 'report', 'metrics', 'basic-bam', 'cg-vcf', 'stats-coverage', 'tstv', 'bias-coverage', 'plot', 'fastqc'])
     parser.add_argument("--n_sample", default=1000, help="sample bed files with this number of lines")
     parser.add_argument("--seed", help="replication of sampling")
     return parser
@@ -214,6 +228,9 @@ if __name__ == "__main__":
         calculate_cg_depth_coverage(data, args)
     elif args.run == "plot":
         save_multiple_regions_coverage(args.bams, args.out, args.region)
+    elif args.run == "fastqc":
+        data = _prepare_samples(args)
+        merge_fastq(data, args)
     elif args.run == "report":
         report(args)
     elif args.run == "complete":
