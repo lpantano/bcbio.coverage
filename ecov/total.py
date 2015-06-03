@@ -1,9 +1,12 @@
 import os
 import os.path as op
 import pandas as pd
+import subprocess
 # from collections import Counter
+import pysam
+import pybedtools
 
-from bcbio.utils import rbind, file_exists
+from bcbio.utils import file_exists, tmpfile
 from bcbio.provenance import do
 from bcbio.distributed.transaction import file_transaction
 from bcbio.log import logger
@@ -15,7 +18,7 @@ class cov_class:
         self.size = size
         self.name = name
         self.sample = sample
-        self.cov = {'10': 0, '25': 0, '50': 0}
+        self.cov = { '10': 0, '25': 0, '50': 0}
 
     def save(self, cov, pt):
         if cov > 10:
@@ -51,22 +54,33 @@ def _get_exome_coverage_stats(fn, sample, out_file):
             tmp_region = cur_region
         stats.dataframe(out_file)
 
+def _silence_run(cmd):
+    do._do_run(cmd, False)
+
 def _calc_total_exome_coverage(data, args):
     in_bam = data['bam']
     out_dir = args.out
     bed_file = args.region
     sample = op.splitext(os.path.basename(in_bam))[0]
-    cov_file = op.join(out_dir, sample + ".dat")
+    region_bed = pybedtools.BedTool(args.region)
     parse_file = op.join(out_dir, sample + "_cov.tsv")
-    if not file_exists(cov_file):
-        with file_transaction(cov_file) as cov_tx:
-            cmd = ("bedtools coverage -b {in_bam} -a {bed_file} -hist > {cov_tx}")
-            do.run(cmd.format(**locals()), "exome coverage for %s" % in_bam)
     if not file_exists(parse_file):
+        bam_api = pysam.AlignmentFile(in_bam)
         with file_transaction(parse_file) as out_tx:
             with open(out_tx, 'w') as out_handle:
                 print >>out_handle, "q10\tq25\tq50\tregion\tsize\tsample"
-            logger.info('parsing coverage: %s' % sample)
-            _get_exome_coverage_stats(cov_file, sample, out_tx)
-    return cov_file
+            with tmpfile() as tx_tmp_file:
+                # tx_tmp_file = "tmpintersect"
+                for line in region_bed:
+                    chrom = line.chrom
+                    start = max(line.start, 0)
+                    end = line.end
+                    region_file = pybedtools.BedTool("%s\t%s\t%s\n" % (chrom, start, end), from_string=True).saveas().fn
+                    coords = "%s:%s-%s" % (chrom, start, end)
+                    cmd = ("samtools view -b {in_bam} {coords} | "
+                           "bedtools coverage -a {region_file} -b - -hist > {tx_tmp_file}")
+                    _silence_run(cmd.format(**locals()))
+                    _get_exome_coverage_stats(op.abspath(tx_tmp_file), sample, out_tx)
+
+    return parse_file
 

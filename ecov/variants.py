@@ -10,49 +10,6 @@ from bcbio.log import logger
 from bcbio.pipeline import config_utils
 from bcbio import broad
 
-class cov_class:
-
-    def __init__(self, size, name, sample):
-        self.size = size
-        self.name = name
-        self.sample = sample
-        self.cov = {'10': 0, '25': 0, '50': 0}
-
-    def save(self, cov, pt):
-        if cov > 10:
-            self.cov['10'] += pt
-        if cov > 25:
-            self.cov['25'] += pt
-        if cov > 50:
-            self.cov['50'] += pt
-
-    def dataframe(self, out_file):
-        # names = ["region", "size", "sample", "10", "25", "50"]
-        df = pd.DataFrame(self.cov, index=["1"])
-        df["region"] = self.name
-        df["size"] = self.size
-        df["sample"] = self.sample
-        df.to_csv(out_file, mode='a', index=False, header=None)
-        #return df
-
-def _get_exome_coverage_stats(fn, sample, out_file):
-    tmp_region = ""
-    stats = ""
-    with open(fn) as in_handle:
-        for line in in_handle:
-            if line.startswith("all"):
-                continue
-            cols = line.strip().split()
-            cur_region = "_".join(cols[0:2])
-            if cur_region != tmp_region:
-                if tmp_region != "":
-                    stats.dataframe(out_file)
-                stats = cov_class(cols[-2], cur_region, sample)
-            stats.save(int(cols[-4]), float(cols[-1]))
-            tmp_region = cur_region
-        stats.dataframe(out_file)
-    # return [st.dataframe(out_file) for st in stats.values()]
-
 def calc_variants_stats(data, args):
     in_vcf = data['vcf']
     ref_file = args.reference
