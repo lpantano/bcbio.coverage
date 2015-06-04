@@ -41,8 +41,9 @@ qc$singletons = unlist(qc_plus[qc_plus$measure=="singletons",as.character(qc$sam
 
 ### Mean quality along read
 
-```{r read-qual, eval=FALSE, echo=FALSE}
-ggplot(qual %>% filter(type=="nt_qual"), aes(x=pos, y=mean_Q, group=Fixed_name, colour=vendor)) +
+```{r read-qual}
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_quality.tsv"), header=T, sep= "\t", check.names = F)
+ggplot(qual, aes(x=Base, y=Mean, group=sample, colour=sample)) +
     geom_line() +
     facet_wrap(~sample) +
     ylim(0,41) +
@@ -54,10 +55,11 @@ ggplot(qual %>% filter(type=="nt_qual"), aes(x=pos, y=mean_Q, group=Fixed_name, 
 
 ### Size distribution
 
-```{r read-size, eval=FALSE, echo=FALSE}
-ggplot(qual %>% filter(type=="length"), aes(x=pos, y=mean_Q, group=Fixed_name, colour=vendor)) +
+```{r read-size}
+qual = read.table(file.path(path_results, "fastqc", "Sequence_Length_Distribution.tsv"), header=T, sep= "\t", check.names = F)
+
+ggplot(qual , aes(x=Length, y=Count, group=sample, colour=sample)) +
     geom_line(size=2, alpha=0.5) +
-    facet_wrap(~sample) +
     scale_color_brewer(palette = "Set1") +
     theme_bw() +
     labs(y="# of reads")+
@@ -67,22 +69,16 @@ ggplot(qual %>% filter(type=="length"), aes(x=pos, y=mean_Q, group=Fixed_name, c
 
 ### Nucleotide content
 
-```{r read-content, eval=FALSE, echo=FALSE}
-qual = read.table("~/orch/scratch/merck_5_vendors/vendors/final-validate/2015-04-01_vendors/fastqc_content.tsv", header=T, sep= "\t", check.names = F)
-names(qual) = c("type", "Name", "pos", "pos_str", "G", "A", "T", "C")
-qual$Fixed_name = fix_names(as.character(qual$Name))
-qual$sample = get_samples(as.character(qual$Fixed_name))
-qual$vendor = get_vendor(as.character(qual$Name))
+```{r read-content}
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.tsv"), header=T, sep= "\t", check.names = F)
 library(gtools)
-qual$pos = factor(qual$pos, levels=mixedsort(unique(qual$pos)))
+qual$Base = factor(qual$Base, levels=mixedsort(unique(qual$Base)))
 
 for (nt in c("G", "A", "T", "C")){
-    pos = "pos"
-    Fixed_name = "Fixed_name"
-    vendor = "vendor"
-    p = ggplot(qual %>% filter(type=="content"), aes_string(x=pos, y=nt, group=Fixed_name, colour=vendor)) +
+    sample = "sample"
+    Base = "Base"
+    p = ggplot(qual, aes_string(x=Base, y=nt, group=sample)) +
         geom_line(size=2, alpha=0.5) +
-        facet_wrap(~sample) +
         scale_color_brewer(palette = "Set1") +
         theme_bw() +
         ylab("% of nucleotides") +
@@ -122,11 +118,6 @@ for (s in list.files("~/orch/scratch/merck_5_vendors/vendors/work/align")){
         tab = rbind(tab, data.frame(sample=s, off_reads = d$V2[2]/d$V2[1]*100))
     }
 }
-
-# kable(tab)
-tab$Fixed_name = fix_names(as.character(tab$sample))
-tab$sample = get_samples(as.character(tab$Fixed_name))
-tab$vendor = get_vendor(as.character(tab$sample))
 
 ggplot(tab, aes(x=Fixed_name, y=off_reads)) + 
     geom_bar(stat = 'identity') +
