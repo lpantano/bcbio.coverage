@@ -61,10 +61,12 @@ def _calc_regional_coverage(in_bam, samplename, chrom, start, end, work_dir):
     # print df
     return df
 
-def _sample_bed(bed_file, n=1000, seed=""):
+def _sample_bed(bed_file, n=1000, seed=None):
     out_file = op.splitext(bed_file)[0] + "-sample.bed"
     if seed:
         seed = " -seed " + str(seed)
+    else:
+        seed = ""
     cmd = ("bedtools sample -n {n} -i {bed_file} {seed} > {tx_out} ")
     if file_exists(out_file):
         return out_file
