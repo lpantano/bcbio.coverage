@@ -27,4 +27,4 @@ mkdir work_complete
 cd work_complete
 
 coverage.py --run complete ../sample1.bam ../sample1.vcf.gz ../final/2015-01-01_test/project-summary.yaml --out test --reference $REF --region ../regions.bed 
-coverage.py --run fastqc --out fastqc ../sample1_data.txt 
+coverage.py --run fastqc --out fastqc ../sample1_data.txt ../sample1.bam 

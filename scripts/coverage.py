@@ -45,6 +45,19 @@ def _find_bam(bam_files, sample):
             candidate = fn
     return candidate
 
+def _find_fastqc(fq_files, sample):
+    """
+    Find the most similar file name
+    """
+    score = 0
+    candidate = None
+    for fn in fq_files:
+        sc = sum(a == b for a, b in zip(op.dirname(sample).split("/")[-1], op.dirname(fn.replace("/qc/fastqc/fastqc_data.txt", "")).split("/")[-1]))
+        if sc > score:
+            score = sc
+            candidate = fn
+    return candidate
+
 def _update_algorithm(data, resources):
     """
     Update algorithm dict with new cores set
@@ -69,8 +82,7 @@ def _prepare_samples(args):
     vcf_files = [fn for fn in args.bams if fn.endswith('vcf.gz')]
     bam_files = [fn for fn in args.bams if fn.endswith('bam')]
     fastqc_files = [fn for fn in args.bams if fn.endswith('data.txt')]
-    if not bam_files:
-        bam_files = fastqc_files
+    assert bam_files, "need the bam files for each sample"
     for sample in bam_files:
         if sample.endswith("yaml"):
             continue
@@ -79,7 +91,7 @@ def _prepare_samples(args):
         dt['config'] = config
         dt['bam'] = op.abspath(sample)
         if vcf_files:
-            dt['vcf'] = _find_bam(vcf_files, sample)
+            dt['vcf'] = _find_fastqc(vcf_files, sample)
         if fastqc_files:
             dt['fastqc'] = _find_bam(fastqc_files, sample)
         data.append([dt])
@@ -87,7 +99,7 @@ def _prepare_samples(args):
 
 def calculate_cg_depth_coverage(data, args):
     safe_makedir(args.out)
-    resources = {'name': 'vcf_stats', 'mem': 1, 'cores': 1}
+    resources = {'name': 'vcf_stats', 'mem': 2, 'cores': 1}
     data = _update_algorithm(data, resources)
     cluster.send_job(calc_variants_stats, data, args, resources)
 
@@ -100,7 +112,7 @@ def bias_exome_coverage(data, args):
 def average_exome_coverage(data, args):
     # dfs = [_calc_total_exome_coverage(bam, bed_file) for bam in in_bams]
     safe_makedir(args.out)
-    resources = {'name': 'bedtools', 'mem': 26, 'cores': 1}
+    resources = {'name': 'bedtools', 'mem': 8, 'cores': 1}
     data = _update_algorithm(data, resources)
     cluster.send_job(_calc_total_exome_coverage, data, args, resources)
     # df = rbind(dfs)

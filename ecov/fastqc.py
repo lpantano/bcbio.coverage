@@ -43,7 +43,7 @@ def merge_fastq(data, args):
         fn = s[0]['fastqc']
         fastqc_list[name] = Fadapa(fn)
 
-    module = [m[1] for m in fastqc_list[name].summary()][2:10]
+    module = [m[1] for m in fastqc_list[name].summary()][2:9]
     for m in module:
         out_file = op.join(out_dir, m.replace(" ", "_") + ".tsv")
         dt = _get_module(fastqc_list, m)
