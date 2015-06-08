@@ -34,7 +34,7 @@ render(file.path(path_results, "report", "report-ready.Rmd"))
 
 ```{r load-metrics}
 qc = read.table(file.path(path_results, "metrics", "metrics.tsv"), header=T, sep= "\t", check.names = F)
-qc_plus= read.table(file.path(path_results, "basic-bam", "flagstat.tsv"), header=T, sep= "\t", check.names = T, fill=T)
+qc_plus= read.table(file.path(path_results, "basic-bam", "flagstat.tsv"), header=T, sep= "\t", check.names = F)
 qc$secondary = unlist(qc_plus[qc_plus$measure=="secondary",as.character(qc$sample)])
 qc$singletons = unlist(qc_plus[qc_plus$measure=="singletons",as.character(qc$sample)])
 ```
@@ -43,7 +43,8 @@ qc$singletons = unlist(qc_plus[qc_plus$measure=="singletons",as.character(qc$sam
 
 ```{r read-qual}
 qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_quality.tsv"), header=T, sep= "\t", check.names = F)
-ggplot(qual, aes(x=Base, y=Mean, group=sample, colour=sample)) +
+qual$sample = as.character(qual$sample)
+ggplot(qual, aes(x=Base, y=Mean, group=sample)) +
     geom_line() +
     facet_wrap(~sample) +
     ylim(0,41) +
@@ -57,11 +58,13 @@ ggplot(qual, aes(x=Base, y=Mean, group=sample, colour=sample)) +
 
 ```{r read-size}
 qual = read.table(file.path(path_results, "fastqc", "Sequence_Length_Distribution.tsv"), header=T, sep= "\t", check.names = F)
+qual$sample = as.character(qual$sample)
 
-ggplot(qual , aes(x=Length, y=Count, group=sample, colour=sample)) +
+ggplot(qual , aes(x=Length, y=Count, group=sample)) +
     geom_line(size=2, alpha=0.5) +
     scale_color_brewer(palette = "Set1") +
     theme_bw() +
+    facet_wrap(~sample) +
     labs(y="# of reads")+
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
     scale_x_discrete(breaks=number_ticks(5)) 
@@ -71,6 +74,8 @@ ggplot(qual , aes(x=Length, y=Count, group=sample, colour=sample)) +
 
 ```{r read-content}
 qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.tsv"), header=T, sep= "\t", check.names = F)
+qual$sample = as.character(qual$sample)
+
 library(gtools)
 qual$Base = factor(qual$Base, levels=mixedsort(unique(qual$Base)))
 
@@ -83,7 +88,7 @@ for (nt in c("G", "A", "T", "C")){
         theme_bw() +
         ylab("% of nucleotides") +
         theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
-        ylim(20,30) + 
+        ylim(10,50) + 
         ggtitle(paste0("For nucleotide:",nt))+
     scale_x_discrete(breaks=number_ticks(10)) 
     print(p)
@@ -148,7 +153,7 @@ print(kable(qc[, metrics], align="c"))
 
 ## coverage
 
-### variants coverage in common regions
+### variants coverage
 
 ```{r variants-coverage}
 fns = list.files(file.path(path_results, "cg"), full.names = TRUE, pattern = "cg-depth-parse.tsv")
@@ -171,7 +176,7 @@ ggplot(tab, aes(x=depth, y=variants_pct, colour=sample, group=sample)) +
     labs(list(x="# of reads", y="% variants with more than X reads", title="variants coverage"))
 ```
 
-### variants coverage vs CG content in common regions
+### variants coverage vs CG content
 
 ```{r variants-coverage-gc, fig.width=15, fig.height=15}
 rf <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
@@ -194,7 +199,7 @@ for (fn in fns){
         ggtitle(sample)
     
     
-    list_p[[sample]]=p
+    list_p[[as.character(sample)]]=p
     
 }
 
@@ -224,20 +229,20 @@ get_quantile_cov = function(path){
 }
 
 make_quantile_plots = function(cov_tab){
-    p1 = ggplot(cov_tab %>% filter(min_reads=='q10'), aes(x=type, y=quantiles, colour=sample, group=sample)) +
+    p1 = ggplot(cov_tab %>% filter(min_reads=='q10'), aes(x=type, y=quantiles,  group=sample)) +
     geom_line(size=2, alpha=.5)+
     theme_bw()+
-    labs(list(x="% of target regions with more than X bases covered", y="% of nt covered inside the target", title="considered covered when nt has >10 reads"))
+    labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >10 reads"))
 
-    p2 = ggplot(cov_tab %>% filter(min_reads=='q25'), aes(x=type, y=quantiles, colour=sample, group=sample)) +
+    p2 = ggplot(cov_tab %>% filter(min_reads=='q25'), aes(x=type, y=quantiles,  group=sample)) +
     geom_line(size=2, alpha=.5)+
     theme_bw()+
-    labs(list(x="% of target regions with more than X bases covered", y="% of nt covered inside the target", title="considered covered when nt has >25 reads"))
+    labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >25 reads"))
 
-    p3 = ggplot(cov_tab %>% filter(min_reads=='q50'), aes(x=type, y=quantiles, colour=sample, group=sample)) +
+    p3 = ggplot(cov_tab %>% filter(min_reads=='q50'), aes(x=type, y=quantiles, group=sample)) +
     geom_line(size=2, alpha=.5)+
     theme_bw()+
-    labs(list(x="% of target regions with more than X bases covered", y="% of nt covered inside the target", title="considered covered when nt has >50 reads"))
+    labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >50 reads"))
     
     grid.arrange(p1, p2, p3, ncol=1)
 }
@@ -272,20 +277,20 @@ get_bias_cov = function(path){
 }
 
 make_bias_plot = function(cov_tab){
-    p1 = ggplot(cov_tab, aes(x=log2(mean), y=cv, colour=sample)) +
+    p1 = ggplot(cov_tab, aes(x=log2(mean), y=cv)) +
     geom_point(alpha=0.5) +
     scale_color_brewer(palette = "Set1") + 
     labs(list(y="coefficient of variation",x="log2(mean coverage)")) +
     theme_bw() +
         ggtitle("coverage variation for each target region")
 
-    p2 = ggplot(cov_tab, aes( x=sample,y=bias, colour=sample)) +
+    p2 = ggplot(cov_tab, aes( x=sample,y=bias)) +
     geom_jitter(alpha=0.5) +
     scale_color_brewer(palette = "Set1") + 
     theme_bw() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
     labs(list(y="% of nt with mean-2SD > coverage > mean+2SD ")) +
-        ggtitle("% of nucleotides with extreme coverage inside target regions")
+        ggtitle("% of nucleotides with extreme\ncoverage inside target regions")
     grid.arrange(p1, p2, ncol=1) 
 }
 ```
@@ -294,3 +299,4 @@ make_bias_plot = function(cov_tab){
 bias_tab = get_bias_cov(file.path(path_results,"bias"))
 make_bias_plot(bias_tab)    
 ```
+
