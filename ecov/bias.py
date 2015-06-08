@@ -37,7 +37,7 @@ def _calc_regional_coverage(in_bam, samplename, chrom, start, end, work_dir):
     coords = "%s:%s-%s" % (chrom, start, end)
     tx_tmp_file = os.path.join(work_dir, "coverage-%s-%s.txt" % (samplename, coords.replace(":", "_")))
     cmd = ("samtools view -b {in_bam} {coords} | "
-           "bedtools coverage -abam - -b {region_file} -d > {tx_tmp_file}")
+           "bedtools coverage -a {region_file} -b - -d > {tx_tmp_file}")
     do.run(cmd.format(**locals()), "region %s" % coords)
     names = ["chom", "start", "end", "offset", "coverage"]
     df = pd.io.parsers.read_table(tx_tmp_file, sep="\t", header=None,
@@ -50,13 +50,14 @@ def _calc_regional_coverage(in_bam, samplename, chrom, start, end, work_dir):
     ntup = sum(np.array(df["coverage"]) > mean + std * 3)
     ntdown = sum(np.array(df["coverage"]) < mean - std * 3)
     dfs = {}
-    dfs["mean"] = mean
-    dfs["std"] = std
-    dfs["ntup"] = ntup
-    dfs["ntdow"] = ntdown
-    dfs["size"] = len(df["coverage"])
-    dfs["sample"] = samplename
-    dfs["region"] = coords
+    if len(df["coverage"]) > 0:
+        dfs["mean"] = mean
+        dfs["std"] = std
+        dfs["ntup"] = ntup
+        dfs["ntdow"] = ntdown
+        dfs["size"] = len(df["coverage"])
+        dfs["sample"] = samplename
+        dfs["region"] = coords
     df = pd.DataFrame(dfs, index=['1'])
     # print df
     return df
@@ -102,6 +103,7 @@ def calculate_bias_over_multiple_regions(data, args):
             end = line.end + PAD
             df = _calc_regional_coverage(in_bam, samplename, chrom,
                                             start, end, op.dirname(tx_out_file))
-            df.to_csv(tx_out_file, mode='a', index=False, header=None, sep="\t")
+            if df.empty:
+                df.to_csv(tx_out_file, mode='a', index=False, header=None, sep="\t")
     return out_file
 

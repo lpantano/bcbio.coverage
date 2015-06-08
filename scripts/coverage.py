@@ -20,7 +20,7 @@ from ichwrapper import cluster, arguments
 
 # import pybedtools
 
-from bcbio.utils import file_exists, splitext_plus, safe_makedir
+from bcbio.utils import file_exists, splitext_plus, safe_makedir, rbind
 # from bcbio.provenance import do
 from bcbio.distributed.transaction import file_transaction
 from bcbio.install import _get_data_dir
@@ -125,13 +125,16 @@ def bcbio_metrics(args):
     project = yaml.load(open(args.bams[0]))
     out_dir = safe_makedir(args.out)
     out_file = op.join(out_dir, "metrics.tsv")
+    dt_together = []
     with file_transaction(out_file) as out_tx:
         for s in project['samples']:
             m = s['summary']['metrics']
             dt = pd.DataFrame(m, index=['1'])
             dt.columns = [k.replace(" ", "_").replace("(", "").replace(")", "") for k in dt.columns]
             dt['sample'] = s['description']
-            dt.to_csv(out_tx, index=False, sep="\t", mode='a')
+            dt_together.append(dt)
+        dt_together = rbind(dt_together)
+        dt_together.to_csv(out_tx, index=False, sep="\t")
 
 def report(args):
     """
