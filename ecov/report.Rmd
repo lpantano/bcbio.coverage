@@ -112,25 +112,6 @@ ggplot(qc, aes(x=sample, y=Mapped_reads)) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### off-target reads
-
-```{r off-reads, results='asis', echo=FALSE, eval=FALSE}
-tab=data.frame()
-for (s in list.files("~/orch/scratch/merck_5_vendors/vendors/work/align")){
-    for (fn in list.files(paste0("~/orch/scratch/merck_5_vendors/vendors/work/align/", s), full.names=T))
-    if (grepl("offtarget-stats.yaml", fn)){
-        d = read.table(fn)
-        tab = rbind(tab, data.frame(sample=s, off_reads = d$V2[2]/d$V2[1]*100))
-    }
-}
-
-ggplot(tab, aes(x=Fixed_name, y=off_reads)) + 
-    geom_bar(stat = 'identity') +
-    ylab("% off-target reads") +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1, colour=col_labs))
-
-```
-
 ### Basic metrics by samples
 
 ```{r table, results='asis'}
