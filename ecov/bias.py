@@ -103,7 +103,7 @@ def calculate_bias_over_multiple_regions(data, args):
             end = line.end + PAD
             df = _calc_regional_coverage(in_bam, samplename, chrom,
                                             start, end, op.dirname(tx_out_file))
-            if df.empty:
+            if not df.empty:
                 df.to_csv(tx_out_file, mode='a', index=False, header=None, sep="\t")
     return out_file
 
