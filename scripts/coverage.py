@@ -52,7 +52,7 @@ def _find_fastqc(fq_files, sample):
     score = 0
     candidate = None
     for fn in fq_files:
-        sc = sum(a == b for a, b in zip(op.dirname(sample).split("/")[-1], op.dirname(fn.replace("/qc/fastqc/fastqc_data.txt", "")).split("/")[-1]))
+        sc = sum(a == b for a, b in zip(op.dirname(sample).split("/")[-1], op.dirname(fn.replace("qc/fastqc/fastqc_data.txt", "")).split("/")[-1]))
         if sc > score:
             score = sc
             candidate = fn
@@ -91,9 +91,9 @@ def _prepare_samples(args):
         dt['config'] = config
         dt['bam'] = op.abspath(sample)
         if vcf_files:
-            dt['vcf'] = _find_fastqc(vcf_files, sample)
+            dt['vcf'] = _find_bam(vcf_files, sample)
         if fastqc_files:
-            dt['fastqc'] = _find_bam(fastqc_files, sample)
+            dt['fastqc'] = _find_fastqc(fastqc_files, sample)
         data.append([dt])
     return data
 

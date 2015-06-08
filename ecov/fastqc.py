@@ -8,9 +8,9 @@ from bcbio.utils import rbind, file_exists, safe_makedir
 
 
 def _get_module(fastq_list, module, wide=True):
-    dt = []
     dt_together = []
     for sample in fastq_list:
+        dt = []
         itern = fastq_list[sample].clean_data(module)
         header = itern[0]
         for data in itern[1:]:
