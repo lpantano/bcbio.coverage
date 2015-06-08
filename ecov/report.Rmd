@@ -10,7 +10,8 @@ library(scales)
 library(gridExtra)
 library(gtools)
 library(RColorBrewer)
-
+library(knitr)
+library(rmarkdown)
 # library(ggbio)
 number_ticks <- function(n) {function(limits) pretty(limits, n)}
 options(bitmapType = 'cairo')
@@ -18,10 +19,7 @@ options(bitmapType = 'cairo')
 path_results = "$path_results"
 ```
 
-```{r create-report, echo=FLASE, eval=FALSE}
-library(knitr)
-library(rmarkdown)
-
+```{r create-report, echo=FALSE, eval=FALSE}
 knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png",
                       cache=FALSE, highlight=TRUE, autodep=TRUE, warning=FALSE, error=FALSE,
                       eval=TRUE, fig.width= 9, echo=FALSE,
@@ -101,6 +99,7 @@ for (nt in c("G", "A", "T", "C")){
 ```{r total-reads}
 ggplot(qc, aes(x=sample, y=Total_reads)) + 
     geom_bar(stat = 'identity') +
+    theme_bw() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
@@ -109,6 +108,7 @@ ggplot(qc, aes(x=sample, y=Total_reads)) +
 ```{r mapped-reads}
 ggplot(qc, aes(x=sample, y=Mapped_reads)) + 
     geom_bar(stat = 'identity') +
+    theme_bw() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
@@ -184,7 +184,6 @@ r <- rf(32)
 list_p = list()
 fns = list.files(file.path(path_results, "cg"), full.names = TRUE, pattern = "cg-depth-parse.tsv")
 for (fn in fns){
-    print(fn)
     dt = read.table(fn, header=T,sep="\t")
     
     dt = dt %>% filter(!grepl("[::.::]",depth))
