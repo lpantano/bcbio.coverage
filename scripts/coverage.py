@@ -2,9 +2,10 @@
 calculate coverage across a list of regions
 """
 import os
-from collections import namedtuple
+from collections import namedtuple, defaultdict
 import pandas as pd
 import string
+import glob
 
 # import six
 from argparse import ArgumentParser
@@ -68,16 +69,20 @@ def _update_algorithm(data, resources):
         new_data.append(sample)
     return new_data
 
-def _prepare_samples(args):
-    """
-    create dict for each sample having all information
-    """
+def _config(args):
     if args.galaxy:
         system_config = args.galaxy
     else:
         system_config = op.join(_get_data_dir(), "galaxy", "bcbio_system.yaml")
     config = yaml.load(open(system_config))
     config['algorithm'] = {}
+    return config
+
+def _prepare_samples(args):
+    """
+    create dict for each sample having all information
+    """
+    config = _config(args)
     data = []
     vcf_files = [fn for fn in args.bams if fn.endswith('vcf.gz')]
     bam_files = [fn for fn in args.bams if fn.endswith('bam')]
@@ -136,11 +141,11 @@ def bcbio_metrics(args):
         dt_together = rbind(dt_together)
         dt_together.to_csv(out_tx, index=False, sep="\t")
 
-def report(args):
+def report(out_dir):
     """
     create rmd template
     """
-    out_dir = safe_makedir(args.out)
+    out_dir = safe_makedir(out_dir)
     template = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../ecov/report.Rmd"))
     content = open(template).read()
     out_content = string.Template(content).safe_substitute({'path_results': op.abspath(".")})
@@ -183,6 +188,11 @@ def complete(args):
     new_args = params().parse_args(new_args)
     bcbio_metrics(new_args)
 
+    print "doing fastqc parsing"
+    new_args = ['--run', 'fastqc', '--out', 'fastqc'] + fastqc
+    new_args = params().parse_args(new_args)
+    merge_fastq(data, new_args)
+
     print "doing stats-coverage"
     new_args = ['--run', 'stats-coverage', '--out', 'coverage', '--region', args.region] + bam + cluster
     new_args = params().parse_args(new_args)
@@ -198,16 +208,112 @@ def complete(args):
     new_args = params().parse_args(new_args)
     calculate_cg_depth_coverage(data, new_args)
 
-    print "doing fastqc parsing"
-    new_args = ['--run', 'fastqc', '--out', 'fastqc'] + fastqc
+    print "doing report"
+    report("report")
+
+def _new_complete(args):
+    data = _read_final(args.bams[0])
+    print data
+    # config = _config(args)
+    # new_data = []
+    # for s in data:
+    #    data['name'] = s
+    #    data['config'] = config
+    #    new_data.append(data[s])
+
+    assert args.reference, "need the reference genome"
+    assert args.bams, "no files detected. Add vcf and bam files"
+    assert args.region, "need region bed file"
+
+    vcf = [d['vcf']['gatk'] for d in data.values() if 'vcf' in d]
+    bam = [d['bam']['ready'] for d in data.values() if 'bam' in d]
+    fastqc = [d['qc']['fastqc'] for d in data.values() if 'qc' in d]
+    yaml_file = args.bams[0]
+
+    assert len(vcf) == len(bam), "no paired bam/vcf files found. %s %s" % (vcf, bam)
+    assert yaml_file, "No bcbio yaml file found."
+    assert fastqc, "No fastqc files"
+
+    cluster = []
+    if args.scheduler:
+        cluster = ['-n', args.numcores, '-s', args.scheduler, '-q', args.queue, '-p', args.tag, '-t', args.paralleltype]
+        if args.resources:
+            cluster += ['-r'] + args.resources
+    cluster = map(str, cluster)
+
+    print "doing basic-bam"
+    new_args = ['--run', 'basic-bam', '--out', 'basic-bam'] + bam
     new_args = params().parse_args(new_args)
+    calculate_bam(new_args)
+
+    print "doing metrics"
+    new_args = ['--run', 'metrics', '--out', 'metrics', yaml_file]
+    new_args = params().parse_args(new_args)
+    bcbio_metrics(new_args)
+
+    print "doing fastqc parsing"
+    new_args = ['--run', 'fastqc', '--out', 'fastqc'] + fastqc + bam
+    new_args = params().parse_args(new_args)
+    data = _prepare_samples(new_args)
     merge_fastq(data, new_args)
 
-    print "doing report"
-    new_args = ['--run', 'report', '--out', 'report']
+    print "doing stats-coverage"
+    new_args = ['--run', 'stats-coverage', '--out', 'coverage', '--region', args.region] + bam + cluster
     new_args = params().parse_args(new_args)
-    report(new_args)
+    data = _prepare_samples(new_args)
+    average_exome_coverage(data, new_args)
 
+    print "doing bias-coverage"
+    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region] + bam + cluster
+    new_args = params().parse_args(new_args)
+    data = _prepare_samples(new_args)
+    bias_exome_coverage(data, new_args)
+
+    print "doing cg-depth in vcf files"
+    new_args = ['--run', 'cg-vcf', '--out', 'cg', '--region', args.region, '--reference', args.reference] + bam + vcf + cluster
+    new_args = params().parse_args(new_args)
+    data = _prepare_samples(new_args)
+    calculate_cg_depth_coverage(data, new_args)
+
+    print "doing report"
+    report("report")
+
+
+def _read_qc_files(qc_dir):
+    """
+    get the fastqc files from sample
+    """
+    qc = {}
+    for fn in glob.glob(op.join(qc_dir, '*/*')):
+        qc_fn = op.relpath(fn, qc_dir)
+        qc_type = qc_fn.split(os.sep)[0]
+        if qc_type == "fastqc":
+            qc[qc_type] = fn
+    return qc
+
+def _read_final(yaml_file):
+    """
+    Get files for each sample from the bcbio upload folder
+    """
+    project = yaml.load(open(yaml_file))
+    final = project['upload']
+    samples = project['samples']
+    data = defaultdict(dict)
+    print "bcbio results at %s" % final
+    for fn in glob.glob(op.join(final, '*/*')):
+        if fn.endswith('tbi') or fn.endswith('bai'):
+            continue
+        rel_path = op.relpath(fn, final)
+        sample = rel_path.split(os.sep)[0]
+        fn_type, ext = splitext_plus(rel_path.split(os.sep)[1].replace(sample + "-", ""))
+        if fn_type == "qc":
+            data[sample]["qc"] = _read_qc_files(fn)
+            continue
+        ext = ext.replace(".gz", "")[1:]
+        if ext not in data[sample]:
+            data[sample][ext] = {}
+        data[sample][ext].update({fn_type: fn})
+    return data
 
 def params():
     parser = ArgumentParser(description="Create file with coverage of a region")
@@ -216,7 +322,7 @@ def params():
     parser.add_argument("--reference", help="genome fasta file.")
     parser.add_argument("--out", help="output file.")
     parser.add_argument("bams", nargs="*", help="Bam files.")
-    parser.add_argument("--run", required=True, help="type of analysis", choices=['complete', 'report', 'metrics', 'basic-bam', 'cg-vcf', 'stats-coverage', 'tstv', 'bias-coverage', 'plot', 'fastqc'])
+    parser.add_argument("--run", required=True, help="type of analysis", choices=['complete', 'report', 'metrics', 'basic-bam', 'cg-vcf', 'stats-coverage', 'tstv', 'bias-coverage', 'plot', 'fastqc', 'final'])
     parser.add_argument("--n_sample", default=1000, help="sample bed files with this number of lines")
     parser.add_argument("--seed", help="replication of sampling")
     return parser
@@ -250,3 +356,5 @@ if __name__ == "__main__":
         report(args)
     elif args.run == "complete":
         complete(args)
+    elif args.run == "final":
+        _new_complete(args)
