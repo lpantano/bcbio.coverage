@@ -240,37 +240,40 @@ def _new_complete(args):
         if args.resources:
             cluster += ['-r'] + args.resources
     cluster = map(str, cluster)
+    galaxy = []
+    if args.galaxy:
+        galaxy = ['--galaxy', args.galaxy]
 
     print "doing basic-bam"
-    new_args = ['--run', 'basic-bam', '--out', 'basic-bam'] + bam
+    new_args = ['--run', 'basic-bam', '--out', 'basic-bam'] + galaxy + bam
     new_args = params().parse_args(new_args)
     calculate_bam(new_args)
 
     print "doing metrics"
-    new_args = ['--run', 'metrics', '--out', 'metrics', yaml_file]
+    new_args = ['--run', 'metrics', '--out', 'metrics', yaml_file] + galaxy
     new_args = params().parse_args(new_args)
     bcbio_metrics(new_args)
 
     print "doing fastqc parsing"
-    new_args = ['--run', 'fastqc', '--out', 'fastqc'] + fastqc + bam
+    new_args = ['--run', 'fastqc', '--out', 'fastqc'] + galaxy + fastqc + bam
     new_args = params().parse_args(new_args)
     data = _prepare_samples(new_args)
     merge_fastq(data, new_args)
 
     print "doing stats-coverage"
-    new_args = ['--run', 'stats-coverage', '--out', 'coverage', '--region', args.region] + bam + cluster
+    new_args = ['--run', 'stats-coverage', '--out', 'coverage', '--region', args.region] + galaxy + bam + cluster
     new_args = params().parse_args(new_args)
     data = _prepare_samples(new_args)
     average_exome_coverage(data, new_args)
 
     print "doing bias-coverage"
-    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region] + bam + cluster
+    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region] + galaxy + bam + cluster
     new_args = params().parse_args(new_args)
     data = _prepare_samples(new_args)
     bias_exome_coverage(data, new_args)
 
     print "doing cg-depth in vcf files"
-    new_args = ['--run', 'cg-vcf', '--out', 'cg', '--region', args.region, '--reference', args.reference] + bam + vcf + cluster
+    new_args = ['--run', 'cg-vcf', '--out', 'cg', '--region', args.region, '--reference', args.reference] + galaxy + bam + vcf + cluster
     new_args = params().parse_args(new_args)
     data = _prepare_samples(new_args)
     calculate_cg_depth_coverage(data, new_args)
