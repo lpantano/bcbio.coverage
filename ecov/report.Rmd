@@ -88,20 +88,16 @@ qual$sample = as.character(qual$sample)
 
 qual$Base = as.numeric(qual$Base)
 
-for (nt in c("G", "A", "T", "C")){
-    sample = "sample"
-    Base = "Base"
-    p = ggplot(qual, aes_string(x=Base, y=nt, group=sample)) +
+dd = melt(qual, id.vars = c("Base", "sample"), variable_name = c("nt"))
+
+ggplot(dd, aes(x=Base, y=value, group=sample)) +
         geom_line(size=2, alpha=0.5) +
-        scale_color_brewer(palette = "Set1") +
         theme_bw() +
         ylab("% of nucleotides") +
         theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
-        ylim(10,50) + 
-        ggtitle(paste0("For nucleotide:",nt))+
-    scale_x_discrete(breaks=number_ticks(10)) 
-    print(p)
-}
+        ylim(10,50) +
+    facet_wrap(~nt)
+    
 
 ```
 
@@ -121,8 +117,9 @@ kable( melt(qual, id.vars=c("Base", "sample"), variable_name = "nt") %>%
 ### Total reads
 
 ```{r total-reads}
-ggplot(qc, aes(x=sample, y=Total_reads)) + 
+ggplot(qc, aes(x=sample, y=Total_reads/1e6)) + 
     geom_bar(stat = 'identity') +
+    ylab("Million reads") +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
@@ -133,6 +130,15 @@ ggplot(qc, aes(x=sample, y=Mapped_reads/Total_reads)) +
     geom_bar(stat = 'identity') +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
+
+### Offtarget reads
+
+```{r off-reads}
+ggplot(qc, aes(x=sample, y=offtarget/Mapped_reads)) + 
+    geom_bar(stat = 'identity') +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
 
 ### Basic metrics by samples
 
@@ -161,11 +167,12 @@ print(kable(qc[, metrics], align="c", digits=2))
 
 ### variants coverage
 
+figure cut at 100 at the x axis.
+
 ```{r variants-coverage}
 fns = list.files(file.path(path_results, "cg"), full.names = TRUE, pattern = "cg-depth-parse.tsv")
 tab = data.frame()
 for (fn in fns){
-    #print(fn)
     dt = read.table(fn, header=T,sep="\t")
     dt = dt %>% filter(!grepl("[::.::]",depth))
     dt[,2] = as.numeric(dt[,2])
@@ -176,9 +183,10 @@ for (fn in fns){
 }
 
 
-ggplot(tab, aes(x=depth, y=variants_pct, colour=sample, group=sample)) +
+ggplot(tab, aes(x=depth, y=variants_pct, group=sample)) +
     geom_line(size=2, alpha=.5)+
     theme_bw() +
+    xlim(0,100) +
     labs(list(x="# of reads", y="% variants with more than X reads", title="variants coverage"))
 ```
 
@@ -259,10 +267,10 @@ cov_tab = get_quantile_cov(file.path(path_results, "coverage"))
 make_quantile_plots(cov_tab)
 ```
 
-Values at 50% of regions
+Values at 90% of regions
 
 ```{r table-completeness, results='asis'}
-kable(cov_tab %>% filter(type == "50%") %>% 
+kable(cov_tab %>% filter(type == "90%") %>% 
           spread(min_reads, quantiles) %>%
           select(targets_pct=type, sample, min_10=q10, min_25=q25, min_50=q50), align="c", digits=2)
 
@@ -306,7 +314,8 @@ make_bias_plot = function(cov_tab){
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
     labs(list(y="% of nt with mean-2SD > coverage > mean+2SD ")) +
         ggtitle("% of nucleotides with extreme\ncoverage inside target regions")
-    grid.arrange(p1, p2, ncol=1) 
+    # grid.arrange(p1, p2, ncol=1) 
+    print(p2)
 }
 ```
 
