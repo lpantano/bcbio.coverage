@@ -219,7 +219,6 @@ for (fn in fns){
 do.call(grid.arrange, list_p)
 ```
 
-### coverage distribution (completeness)
 
 ```{r total-coverage-load}
 get_quantile_cov = function(path){
@@ -239,6 +238,28 @@ get_quantile_cov = function(path){
         
     }
     cov_tab
+}
+
+
+get_total_cov = function(path){
+    cov_tab = data.frame()
+    for (fn in list.files(path, pattern = "_cov_total.tsv", full.names = TRUE)){
+            d = read.table(fn, header=T, sep="\t")
+            pct = cumsum(d[,2])/d[,3] * 100
+            s = gsub("-ready","",d[1,4])
+            t = data.frame(depth=d[,1], bases=pct, sample=s)
+            cov_tab = rbind(cov_tab, t)
+    }
+    cov_tab
+}
+
+
+make_total_cov_plots = function(cov_tab){
+    p =ggplot(cov_tab, aes(x=bases, y=depth, group=sample)) +
+        geom_line(size=2, alpha=.5)+
+        theme_bw()+
+        labs(list(x="% of bed file", y="# of reads"))
+    print(p)
 }
 
 make_quantile_plots = function(cov_tab){
@@ -262,7 +283,17 @@ make_quantile_plots = function(cov_tab){
 
 ```
 
-```{r agilent-cov-total-fig, fig.height=12, fig.width=12, cache=TRUE}
+### coverage distribution (total)
+
+
+```{r cov-total-fig, fig.height=12, fig.width=12, cache=TRUE}
+cov_tab = get_total_cov(file.path(path_results, "coverage"))
+make_total_cov_plots(cov_tab)
+```
+
+### coverage distribution (completeness)
+
+```{r completeness-fig, fig.height=12, fig.width=12, cache=TRUE}
 cov_tab = get_quantile_cov(file.path(path_results, "coverage"))
 make_quantile_plots(cov_tab)
 ```

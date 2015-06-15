@@ -22,6 +22,9 @@ class cov_class:
         self.cov = {'10': 0, '25': 0, '50': 0}
         self.total = Counter()
 
+    def update(self, size):
+        self.size += size
+
     def save(self, cov, pt):
         if cov > 10:
             self.cov['10'] += pt
@@ -30,10 +33,10 @@ class cov_class:
         if cov > 50:
             self.cov['50'] += pt
 
-    def save_coverage(self, cov, nt, size):
+    def save_coverage(self, cov, nt):
         if cov > 100:
             cov = 100
-        self.size += size
+        # self.size += size
         self.total[cov] += nt
 
     def write_coverage(self, out_file):
@@ -66,8 +69,9 @@ def _get_exome_coverage_stats(fn, sample, out_file, total_cov):
                     stats.write_completeness(out_file)
                 stats = cov_class(cols[-2], cur_region, sample)
             stats.save(int(cols[-4]), float(cols[-1]))
-            total_cov.save_coverage(int(cols[-4]), int(cols[-3]), int(cols[-2]))
+            total_cov.save_coverage(int(cols[-4]), int(cols[-3]))
             tmp_region = cur_region
+        total_cov.update(int(cols[-2]))
         stats.write_completeness(out_file)
     return total_cov
 
@@ -81,7 +85,7 @@ def _calc_total_exome_coverage(data, args):
     sample = op.splitext(os.path.basename(in_bam))[0]
     region_bed = pybedtools.BedTool(args.region)
     parse_file = op.join(out_dir, sample + "_cov.tsv")
-    parse_total_file = op.join(out_dir, sample + "_total_cov.tsv")
+    parse_total_file = op.join(out_dir, sample + "_cov_total.tsv")
     if not file_exists(parse_file):
         total_cov = cov_class(0, None, sample)
         bam_api = pysam.AlignmentFile(in_bam)

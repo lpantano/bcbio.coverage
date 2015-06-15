@@ -281,7 +281,6 @@ def _new_complete(args):
     print "doing report"
     report("report")
 
-
 def _read_qc_files(qc_dir):
     """
     get the fastqc files from sample
