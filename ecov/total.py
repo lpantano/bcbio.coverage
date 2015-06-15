@@ -2,7 +2,8 @@ import os
 import os.path as op
 import pandas as pd
 import subprocess
-# from collections import Counter
+from collections import Counter
+
 import pysam
 import pybedtools
 
@@ -18,7 +19,8 @@ class cov_class:
         self.size = size
         self.name = name
         self.sample = sample
-        self.cov = { '10': 0, '25': 0, '50': 0}
+        self.cov = {'10': 0, '25': 0, '50': 0}
+        self.total = Counter()
 
     def save(self, cov, pt):
         if cov > 10:
@@ -28,7 +30,20 @@ class cov_class:
         if cov > 50:
             self.cov['50'] += pt
 
-    def dataframe(self, out_file):
+    def save_coverage(self, cov, nt, size):
+        if cov > 100:
+            cov = 100
+        self.size += size
+        self.total[cov] += nt
+
+    def write_coverage(self, out_file):
+        # names = ["region", "size", "sample", "10", "25", "50"]
+        df = pd.DataFrame({'depth': self.total.keys(), 'nt': self.total.values()})
+        df["size"] = self.size
+        df["sample"] = self.sample
+        df.to_csv(out_file, mode='a', header=False, index=False, sep="\t")
+
+    def write_completeness(self, out_file):
         # names = ["region", "size", "sample", "10", "25", "50"]
         df = pd.DataFrame(self.cov, index=["1"])
         df["region"] = self.name
@@ -37,7 +52,7 @@ class cov_class:
         df.to_csv(out_file, mode='a', header=False, index=False, sep="\t")
         #return df
 
-def _get_exome_coverage_stats(fn, sample, out_file):
+def _get_exome_coverage_stats(fn, sample, out_file, total_cov):
     tmp_region = ""
     stats = ""
     with open(fn) as in_handle:
@@ -48,11 +63,13 @@ def _get_exome_coverage_stats(fn, sample, out_file):
             cur_region = "_".join(cols[0:2])
             if cur_region != tmp_region:
                 if tmp_region != "":
-                    stats.dataframe(out_file)
+                    stats.write_completeness(out_file)
                 stats = cov_class(cols[-2], cur_region, sample)
             stats.save(int(cols[-4]), float(cols[-1]))
+            total_cov.save_coverage(int(cols[-4]), int(cols[-3]), int(cols[-2]))
             tmp_region = cur_region
-        stats.dataframe(out_file)
+        stats.write_completeness(out_file)
+    return total_cov
 
 def _silence_run(cmd):
     do._do_run(cmd, False)
@@ -64,7 +81,9 @@ def _calc_total_exome_coverage(data, args):
     sample = op.splitext(os.path.basename(in_bam))[0]
     region_bed = pybedtools.BedTool(args.region)
     parse_file = op.join(out_dir, sample + "_cov.tsv")
+    parse_total_file = op.join(out_dir, sample + "_total_cov.tsv")
     if not file_exists(parse_file):
+        total_cov = cov_class(0, None, sample)
         bam_api = pysam.AlignmentFile(in_bam)
         with file_transaction(parse_file) as out_tx:
             with open(out_tx, 'w') as out_handle:
@@ -80,7 +99,8 @@ def _calc_total_exome_coverage(data, args):
                     cmd = ("samtools view -b {in_bam} {coords} | "
                            "bedtools coverage -a {region_file} -b - -hist > {tx_tmp_file}")
                     _silence_run(cmd.format(**locals()))
-                    _get_exome_coverage_stats(op.abspath(tx_tmp_file), sample, out_tx)
+                    total_cov = _get_exome_coverage_stats(op.abspath(tx_tmp_file), sample, out_tx, total_cov)
+        total_cov.write_coverage(parse_total_file)
 
     return parse_file
 
