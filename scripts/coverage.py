@@ -287,7 +287,7 @@ def _read_qc_files(qc_dir):
     get the fastqc files from sample
     """
     qc = {}
-    for fn in glob.glob(op.join(qc_dir, '*/*')):
+    for fn in glob.glob(op.join(qc_dir, '*/*data.txt')):
         qc_fn = op.relpath(fn, qc_dir)
         qc_type = qc_fn.split(os.sep)[0]
         if qc_type == "fastqc":
@@ -300,7 +300,7 @@ def _read_final(yaml_file):
     """
     project = yaml.load(open(yaml_file))
     final = project['upload']
-    samples = project['samples']
+    samples =  [s['description'] for s in project['samples']]
     data = defaultdict(dict)
     print "bcbio results at %s" % final
     for fn in glob.glob(op.join(final, '*/*')):
@@ -308,6 +308,8 @@ def _read_final(yaml_file):
             continue
         rel_path = op.relpath(fn, final)
         sample = rel_path.split(os.sep)[0]
+        if sample not in samples:
+            continue
         fn_type, ext = splitext_plus(rel_path.split(os.sep)[1].replace(sample + "-", ""))
         if fn_type == "qc":
             data[sample]["qc"] = _read_qc_files(fn)
