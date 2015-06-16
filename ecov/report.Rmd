@@ -30,6 +30,17 @@ render(file.path(path_results, "report", "report-ready.Rmd"))
 ```
 
 
+## samples similarity
+
+Samples with less than 5% of similarity. It should show samples more similar than a first degree relative. Or technical replicate with different library preparation or exactly the same sample if score is 0.
+
+```{r qsignature, results='asis'}
+sim = read.table(file.path(path_results, "qsignature.ma"))
+kable(sim %>% filter(V3<0.05))
+
+```
+
+
 ## quality control metrics
 
 ```{r load-metrics}
@@ -245,7 +256,7 @@ get_total_cov = function(path){
     cov_tab = data.frame()
     for (fn in list.files(path, pattern = "_cov_total.tsv", full.names = TRUE)){
             d = read.table(fn, header=T, sep="\t")
-            pct = cumsum(d[,2])/d[,3] * 100
+            pct = 1 - cumsum(d[,2])/d[,3] * 100
             s = gsub("-ready","",d[1,4])
             t = data.frame(depth=d[,1], bases=pct, sample=s)
             cov_tab = rbind(cov_tab, t)
@@ -255,10 +266,10 @@ get_total_cov = function(path){
 
 
 make_total_cov_plots = function(cov_tab){
-    p =ggplot(cov_tab, aes(x=bases, y=depth, group=sample)) +
+    p =ggplot(cov_tab, aes(y=bases, x=depth, group=sample)) +
         geom_line(size=2, alpha=.5)+
         theme_bw()+
-        labs(list(x="% of bed file", y="# of reads"))
+        labs(list(y="% of bed file > depth", x="# of reads"))
     print(p)
 }
 
@@ -354,5 +365,6 @@ make_bias_plot = function(cov_tab){
 bias_tab = get_bias_cov(file.path(path_results,"bias"))
 make_bias_plot(bias_tab)    
 ```
+
 
 

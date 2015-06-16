@@ -6,6 +6,7 @@ from collections import namedtuple, defaultdict
 import pandas as pd
 import string
 import glob
+import shutil
 
 # import six
 from argparse import ArgumentParser
@@ -245,6 +246,10 @@ def _new_complete(args):
     if args.galaxy:
         galaxy = ['--galaxy', args.galaxy]
 
+    print "copy qsignature"
+    fn = glob.glob(op.join(_get_final_folder(yaml_file)['upload'], "*/mixup_check/qsignature.ma"))
+    shutil.copy(fn[0], "qsignature.ma")
+
     print "doing basic-bam"
     new_args = ['--run', 'basic-bam', '--out', 'basic-bam'] + galaxy + bam
     new_args = params().parse_args(new_args)
@@ -294,11 +299,15 @@ def _read_qc_files(qc_dir):
             qc[qc_type] = fn
     return qc
 
+def _get_final_folder(yaml_file):
+    project = yaml.load(open(yaml_file))
+    return project
+
 def _read_final(yaml_file):
     """
     Get files for each sample from the bcbio upload folder
     """
-    project = yaml.load(open(yaml_file))
+    project = _get_final_folder(yaml_file)
     final = project['upload']
     samples =  [s['description'] for s in project['samples']]
     data = defaultdict(dict)
