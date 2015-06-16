@@ -225,7 +225,8 @@ def _new_complete(args):
     assert args.bams, "no files detected. Add vcf and bam files"
     assert args.region, "need region bed file"
 
-    vcf = [d['vcf']['gatk'] for d in data.values() if 'vcf' in d]
+    vcf_type = data.values()[1]['vcf'].keys()[0]
+    vcf = [d['vcf'][vcf_type] for d in data.values() if 'vcf' in d]
     bam = [d['bam']['ready'] for d in data.values() if 'bam' in d]
     fastqc = [d['qc']['fastqc'] for d in data.values() if 'qc' in d]
     yaml_file = args.bams[0]
