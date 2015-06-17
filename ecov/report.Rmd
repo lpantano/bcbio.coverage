@@ -36,7 +36,9 @@ Samples with less than 5% of similarity. It should show samples more similar tha
 
 ```{r qsignature, results='asis'}
 sim = read.table(file.path(path_results, "qsignature.ma"))
-kable(sim %>% filter(V3<0.05))
+names(sim) = c("sample1" , "sample2", "score")
+
+kable(sim %>% filter(score<0.1) %>% arrange(score))
 
 ```
 
@@ -46,6 +48,9 @@ kable(sim %>% filter(V3<0.05))
 ```{r load-metrics}
 qc = read.table(file.path(path_results, "metrics", "metrics.tsv"), header=T, sep= "\t", check.names = F)
 rownames(qc) = qc$sample
+qc$Mapped_reads_pct = as.numeric(gsub("%", "", qc$Mapped_reads_pct))
+qc$Duplicates_pct = as.numeric(gsub("%", "", qc$Duplicates_pct))
+
 qc_plus= read.table(file.path(path_results, "basic-bam", "flagstat.tsv"), header=T, sep= "\t", check.names = F)
 qc$secondary = unlist(qc_plus[qc_plus$measure=="secondary",as.character(qc$sample)])
 qc$singletons = unlist(qc_plus[qc_plus$measure=="singletons",as.character(qc$sample)])
@@ -72,7 +77,7 @@ ggplot(qual, aes(x=Base, y=Mean, group=sample)) +
 ```{r read-size}
 qual = read.table(file.path(path_results, "fastqc", "Sequence_Length_Distribution.tsv"), header=T, sep= "\t", check.names = F)
 qual$sample = as.character(qual$sample)
-qual$pct = qual$Count / qc[qual$sample, 'Total_reads']
+qual$pct = qual$Count / qual$total
 
 ggplot(qual , aes(x=Length, y=Count, group=sample)) +
     geom_line(size=2, alpha=0.5) +
@@ -169,7 +174,7 @@ print(kable(qc[, metrics], align="c", digits=2))
 ```{r table-variants, results='asis'}
 qc$ratio_het_hom = qc$Variations_heterozygous/qc$Variations_homozygous
 metrics = c("sample", "Variations_total", "Variations_in_dbSNP_pct",
-            "Variations_heterozygous", "Variations_homozygous", "ratio_het_hom" )
+            "Variations_heterozygous", "Variations_homozygous", "ratio_het_hom", "Transition/Transversion")
 print(kable(qc[, metrics], align="c", digits=2))
 
 ```
@@ -256,7 +261,7 @@ get_total_cov = function(path){
     cov_tab = data.frame()
     for (fn in list.files(path, pattern = "_cov_total.tsv", full.names = TRUE)){
             d = read.table(fn, header=T, sep="\t")
-            pct = 1 - cumsum(d[,2])/d[,3] * 100
+            pct = 100 - cumsum(d[,2])/d[,3] * 100
             s = gsub("-ready","",d[1,4])
             t = data.frame(depth=d[,1], bases=pct, sample=s)
             cov_tab = rbind(cov_tab, t)
@@ -297,7 +302,7 @@ make_quantile_plots = function(cov_tab){
 ### coverage distribution (total)
 
 
-```{r cov-total-fig, fig.height=12, fig.width=12, cache=TRUE}
+```{r cov-total-fig, fig.height=6, fig.width=11, cache=TRUE}
 cov_tab = get_total_cov(file.path(path_results, "coverage"))
 make_total_cov_plots(cov_tab)
 ```
@@ -365,6 +370,9 @@ make_bias_plot = function(cov_tab){
 bias_tab = get_bias_cov(file.path(path_results,"bias"))
 make_bias_plot(bias_tab)    
 ```
+
+
+
 
 
 
