@@ -135,7 +135,7 @@ def bcbio_metrics(args):
     with file_transaction(out_file) as out_tx:
         for s in project['samples']:
             m = s['summary']['metrics']
-            dt = pd.DataFrame(m, index=['1'])
+            dt = pd.DataFrame.from_dict(m)
             dt.columns = [k.replace(" ", "_").replace("(", "").replace(")", "") for k in dt.columns]
             dt['sample'] = s['description']
             dt_together.append(dt)
