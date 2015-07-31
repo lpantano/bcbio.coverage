@@ -274,7 +274,7 @@ def _new_complete(args):
     average_exome_coverage(data, new_args)
 
     print "doing bias-coverage"
-    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', args.n_sample] + galaxy + bam + cluster
+    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', str(args.n_sample)] + galaxy + bam + cluster
     new_args = params().parse_args(new_args)
     data = _prepare_samples(new_args)
     bias_exome_coverage(data, new_args)
