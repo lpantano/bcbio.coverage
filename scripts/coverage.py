@@ -226,7 +226,7 @@ def _new_complete(args):
     assert args.bams, "no files detected. Add vcf and bam files"
     assert args.region, "need region bed file"
 
-    vcf_type = data.values()[1]['vcf'].keys()[0]
+    vcf_type = data.values()[0]['vcf'].keys()[0]
     vcf = [d['vcf'][vcf_type] for d in data.values() if 'vcf' in d]
     bam = [d['bam']['ready'] for d in data.values() if 'bam' in d]
     fastqc = [d['qc']['fastqc'] for d in data.values() if 'qc' in d]
@@ -248,7 +248,8 @@ def _new_complete(args):
 
     print "copy qsignature"
     fn = glob.glob(op.join(_get_final_folder(yaml_file)['upload'], "*/mixup_check/qsignature.ma"))
-    shutil.copy(fn[0], "qsignature.ma")
+    if file_exists(fn[0]):
+        shutil.copy(fn[0], "qsignature.ma")
 
     print "doing basic-bam"
     new_args = ['--run', 'basic-bam', '--out', 'basic-bam'] + galaxy + bam
@@ -273,7 +274,7 @@ def _new_complete(args):
     average_exome_coverage(data, new_args)
 
     print "doing bias-coverage"
-    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region] + galaxy + bam + cluster
+    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', args.n_sample] + galaxy + bam + cluster
     new_args = params().parse_args(new_args)
     data = _prepare_samples(new_args)
     bias_exome_coverage(data, new_args)
