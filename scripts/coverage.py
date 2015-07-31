@@ -135,6 +135,9 @@ def bcbio_metrics(args):
     with file_transaction(out_file) as out_tx:
         for s in project['samples']:
             m = s['summary']['metrics']
+            for me in m:
+                if isinstance(m[me], list):
+                    m[me] = ":".join(m[me])
             dt = pd.DataFrame(m, index=['1'])
             dt.columns = [k.replace(" ", "_").replace("(", "").replace(")", "") for k in dt.columns]
             dt['sample'] = s['description']
