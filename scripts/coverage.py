@@ -248,7 +248,7 @@ def _new_complete(args):
 
     print "copy qsignature"
     fn = glob.glob(op.join(_get_final_folder(yaml_file)['upload'], "*/mixup_check/qsignature.ma"))
-    if file_exists(fn[0]):
+    if file_exists(fn[0]) and not file_exists("qsignature.ma"):
         shutil.copy(fn[0], "qsignature.ma")
 
     print "doing basic-bam"
