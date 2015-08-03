@@ -60,7 +60,7 @@ qc$singletons = unlist(qc_plus[qc_plus$measure=="singletons",as.character(qc$sam
 ### Mean quality along read
 
 ```{r read-qual}
-qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_quality.tsv"), header=T, sep= "\t", check.names = F)
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_quality.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
 qual$sample = as.character(qual$sample)
 
 ggplot(qual, aes(x=Base, y=Mean, group=sample)) +
@@ -76,9 +76,8 @@ ggplot(qual, aes(x=Base, y=Mean, group=sample)) +
 ### Size distribution
 
 ```{r read-size}
-qual = read.table(file.path(path_results, "fastqc", "Sequence_Length_Distribution.tsv"), header=T, sep= "\t", check.names = F)
-qual$sample = as.character(qual$sample)
-qual$pct = qual$Count / qual$total
+qual = read.table(file.path(path_results, "fastqc", "Sequence_Length_Distribution.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
+qual = qual %>% group_by(sample) %>% mutate(total=sum(Count), pct=Count/total)
 
 ggplot(qual , aes(x=Length, y=Count, group=sample)) +
     geom_line(size=2, alpha=0.5) +
@@ -100,7 +99,7 @@ kable(qual %>% filter(pct > 0.25) %>% select(Length, sample, pct) %>% spread(Len
 ### Nucleotide content
 
 ```{r read-content}
-qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.tsv"), header=T, sep= "\t", check.names = F)
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
 qual$sample = as.character(qual$sample)
 
 qual$Base = as.numeric(qual$Base)
