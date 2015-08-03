@@ -3,7 +3,6 @@
 ```{r custom}
 library(VariantAnnotation)
 library(ggplot2)
-library(devtools)
 library(dplyr)
 library(pheatmap)
 library(scales)
@@ -46,7 +45,9 @@ kable(sim %>% filter(score<0.1) %>% arrange(score))
 ## quality control metrics
 
 ```{r load-metrics}
-qc = read.table(file.path(path_results, "metrics", "metrics.tsv"), header=T, sep= "\t", check.names = F)
+qc = read.table(file.path(path_results, "metrics", "metrics.tsv"),
+                header=T, sep="\t", check.names=F,
+                colClasses=list("sample"="character"))
 rownames(qc) = qc$sample
 qc$Mapped_reads_pct = as.numeric(gsub("%", "", qc$Mapped_reads_pct))
 qc$Duplicates_pct = as.numeric(gsub("%", "", qc$Duplicates_pct))
@@ -59,7 +60,7 @@ qc$singletons = unlist(qc_plus[qc_plus$measure=="singletons",as.character(qc$sam
 ### Mean quality along read
 
 ```{r read-qual}
-qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_quality.tsv"), header=T, sep= "\t", check.names = F)
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_quality.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
 qual$sample = as.character(qual$sample)
 
 ggplot(qual, aes(x=Base, y=Mean, group=sample)) +
@@ -69,15 +70,14 @@ ggplot(qual, aes(x=Base, y=Mean, group=sample)) +
     scale_color_brewer(palette = "Set1") +
     theme_bw() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5))+
-    scale_x_discrete(breaks=number_ticks(10)) 
+    scale_x_discrete(breaks=number_ticks(10))
 ```
 
 ### Size distribution
 
 ```{r read-size}
-qual = read.table(file.path(path_results, "fastqc", "Sequence_Length_Distribution.tsv"), header=T, sep= "\t", check.names = F)
-qual$sample = as.character(qual$sample)
-qual$pct = qual$Count / qual$total
+qual = read.table(file.path(path_results, "fastqc", "Sequence_Length_Distribution.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
+qual = qual %>% group_by(sample) %>% mutate(total=sum(Count), pct=Count/total)
 
 ggplot(qual , aes(x=Length, y=Count, group=sample)) +
     geom_line(size=2, alpha=0.5) +
@@ -86,7 +86,7 @@ ggplot(qual , aes(x=Length, y=Count, group=sample)) +
     facet_wrap(~sample) +
     labs(y="# of reads")+
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
-    scale_x_discrete(breaks=number_ticks(5)) 
+    scale_x_discrete(breaks=number_ticks(5))
 ```
 
 Length read with more than 25% of the total reads.
@@ -99,7 +99,7 @@ kable(qual %>% filter(pct > 0.25) %>% select(Length, sample, pct) %>% spread(Len
 ### Nucleotide content
 
 ```{r read-content}
-qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.tsv"), header=T, sep= "\t", check.names = F)
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
 qual$sample = as.character(qual$sample)
 
 qual$Base = as.numeric(qual$Base)
@@ -113,16 +113,16 @@ ggplot(dd, aes(x=Base, y=value, group=sample)) +
         theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
         ylim(10,50) +
     facet_wrap(~nt)
-    
+
 
 ```
 
 Nt in position with > 30% or < 10% of total reads.
 
 ```{r table-content, results='asis'}
-kable( melt(qual, id.vars=c("Base", "sample"), variable_name = "nt") %>% 
+kable( melt(qual, id.vars=c("Base", "sample"), variable_name = "nt") %>%
            filter(value > 30 | value < 10) %>% filter(Base<20) %>%
-           select(Base, sample, nt, value) %>% 
+           select(Base, sample, nt, value) %>%
            spread(Base, value),
        align="c", digits=2)
 
@@ -133,7 +133,7 @@ kable( melt(qual, id.vars=c("Base", "sample"), variable_name = "nt") %>%
 ### Total reads
 
 ```{r total-reads}
-ggplot(qc, aes(x=sample, y=Total_reads/1e6)) + 
+ggplot(qc, aes(x=sample, y=Total_reads/1e6)) +
     geom_bar(stat = 'identity') +
     ylab("Million reads") +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
@@ -142,7 +142,7 @@ ggplot(qc, aes(x=sample, y=Total_reads/1e6)) +
 ### Mapped reads
 
 ```{r mapped-reads}
-ggplot(qc, aes(x=sample, y=Mapped_reads/Total_reads)) + 
+ggplot(qc, aes(x=sample, y=Mapped_reads/Total_reads)) +
     geom_bar(stat = 'identity') +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
@@ -150,7 +150,7 @@ ggplot(qc, aes(x=sample, y=Mapped_reads/Total_reads)) +
 ### Offtarget reads
 
 ```{r off-reads}
-ggplot(qc, aes(x=sample, y=offtarget/Mapped_reads)) + 
+ggplot(qc, aes(x=sample, y=offtarget/Mapped_reads)) +
     geom_bar(stat = 'identity') +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
@@ -159,7 +159,7 @@ ggplot(qc, aes(x=sample, y=offtarget/Mapped_reads)) +
 ### Basic metrics by samples
 
 ```{r table, results='asis'}
-metrics = c("sample", "Total_reads" ,"Mapped_reads_pct", "Duplicates_pct", 
+metrics = c("sample", "Total_reads" ,"Mapped_reads_pct", "Duplicates_pct",
             "singletons", "secondary", "offtarget",
             "%GC", "Sequence_length", "Median_insert_size")
 qc$offtarget = qc$offtarget/qc$Total_reads
@@ -215,7 +215,7 @@ list_p = list()
 fns = list.files(file.path(path_results, "cg"), full.names = TRUE, pattern = "cg-depth-parse.tsv")
 for (fn in fns){
     dt = read.table(fn, header=T,sep="\t")
-    
+
     dt = dt %>% filter(!grepl("[::.::]",depth))
     dt[,2] = as.numeric(dt[,2])
     sample = dt$sample[1]
@@ -226,10 +226,10 @@ for (fn in fns){
         theme_bw() +
         ylim(0,700) +
         ggtitle(sample)
-    
-    
+
+
     list_p[[as.character(sample)]]=p
-    
+
 }
 
 do.call(grid.arrange, list_p)
@@ -251,7 +251,7 @@ get_quantile_cov = function(path){
                 t = data.frame(quantiles=q*100, type=labels, sample=s, min_reads=co[i])
                 cov_tab = rbind(cov_tab, t)
             }
-        
+
     }
     cov_tab
 }
@@ -293,7 +293,7 @@ make_quantile_plots = function(cov_tab){
     geom_line(size=2, alpha=.5)+
     theme_bw()+
     labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >50 reads"))
-    
+
     grid.arrange(p1, p2, p3, ncol=1)
 }
 
@@ -317,7 +317,7 @@ make_quantile_plots(cov_tab)
 Values at 90% of regions
 
 ```{r table-completeness, results='asis'}
-kable(cov_tab %>% filter(type == "90%") %>% 
+kable(cov_tab %>% filter(type == "90%") %>%
           spread(min_reads, quantiles) %>%
           select(targets_pct=type, sample, min_10=q10, min_25=q25, min_50=q50), align="c", digits=2)
 
@@ -334,14 +334,14 @@ cov_tab = data.frame()
 get_bias_cov = function(path){
     for (fn in list.files(path, pattern = "_bias.tsv", full.names = TRUE)){
             d = read.table(fn, header=T, sep="\t")
-            
+
             cv = d[,"std"]/d[,"mean"]
             bias = (d[,"ntdow"] + d[,"ntup"])/d[,"size"] * 100
             s = as.character(gsub("-ready","",d[1,"sample"]))
             t = data.frame(bias=bias, cv=cv, mean=d[,"mean"], sample=s)
             cov_tab = rbind(cov_tab, t)
-            
-        
+
+
     }
     cov_tab
 }
@@ -349,30 +349,24 @@ get_bias_cov = function(path){
 make_bias_plot = function(cov_tab){
     p1 = ggplot(cov_tab, aes(x=log2(mean), y=cv)) +
     geom_point(alpha=0.5) +
-    scale_color_brewer(palette = "Set1") + 
+    scale_color_brewer(palette = "Set1") +
     labs(list(y="coefficient of variation",x="log2(mean coverage)")) +
     theme_bw() +
         ggtitle("coverage variation for each target region")
 
     p2 = ggplot(cov_tab, aes( x=sample,y=bias)) +
     geom_jitter(alpha=0.5) +
-    scale_color_brewer(palette = "Set1") + 
+    scale_color_brewer(palette = "Set1") +
     theme_bw() +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     labs(list(y="% of nt with mean-2SD > coverage > mean+2SD ")) +
         ggtitle("% of nucleotides with extreme\ncoverage inside target regions")
-    # grid.arrange(p1, p2, ncol=1) 
+    # grid.arrange(p1, p2, ncol=1)
     print(p2)
 }
 ```
 
 ```{r cov-uniformity-load-agilent, fig.height=12, fig.width=12, cache=TRUE, eval=FALSE, echo=FALSE}
 bias_tab = get_bias_cov(file.path(path_results,"bias"))
-make_bias_plot(bias_tab)    
+make_bias_plot(bias_tab)
 ```
-
-
-
-
-
-
