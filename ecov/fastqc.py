@@ -13,6 +13,7 @@ def _get_module(fastq_list, module, wide=True):
         dt = []
         itern = fastq_list[sample].clean_data(module)
         header = itern[0]
+        total = fastq_list[sample].clean_data("Basic Statistics")[4][1]
         for data in itern[1:]:
             if data[0].startswith("#"):
                 header = data
@@ -27,6 +28,7 @@ def _get_module(fastq_list, module, wide=True):
         dt = pd.DataFrame(dt)
         dt.columns = [h.replace(" ", "_") for h in header]
         dt['sample'] = sample
+        dt['total'] = total
         dt_together.append(dt)
     dt_together = rbind(dt_together)
     return dt_together

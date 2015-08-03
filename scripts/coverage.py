@@ -137,8 +137,9 @@ def bcbio_metrics(args):
             m = s['summary']['metrics']
             for me in m:
                 if isinstance(m[me], list):
-                    m[me] = ";".join(m[me])
-            dt = pd.DataFrame.from_dict(m)
+                    m[me] = ":".join(m[me])
+            dt = pd.DataFrame(m, index=['1'])
+            # dt = pd.DataFrame.from_dict(m)
             dt.columns = [k.replace(" ", "_").replace("(", "").replace(")", "") for k in dt.columns]
             dt['sample'] = s['description']
             dt_together.append(dt)
