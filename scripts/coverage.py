@@ -139,6 +139,7 @@ def bcbio_metrics(args):
                 if isinstance(m[me], list):
                     m[me] = ":".join(m[me])
             dt = pd.DataFrame(m, index=['1'])
+            # dt = pd.DataFrame.from_dict(m)
             dt.columns = [k.replace(" ", "_").replace("(", "").replace(")", "") for k in dt.columns]
             dt['sample'] = s['description']
             dt_together.append(dt)
@@ -251,7 +252,7 @@ def _new_complete(args):
 
     print "copy qsignature"
     fn = glob.glob(op.join(_get_final_folder(yaml_file)['upload'], "*/mixup_check/qsignature.ma"))
-    if file_exists(fn[0]):
+    if file_exists(fn[0]) and not file_exists("qsignature.ma"):
         shutil.copy(fn[0], "qsignature.ma")
 
     print "doing basic-bam"
@@ -277,7 +278,7 @@ def _new_complete(args):
     average_exome_coverage(data, new_args)
 
     print "doing bias-coverage"
-    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', args.n_sample] + galaxy + bam + cluster
+    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', str(args.n_sample)] + galaxy + bam + cluster
     new_args = params().parse_args(new_args)
     data = _prepare_samples(new_args)
     bias_exome_coverage(data, new_args)
