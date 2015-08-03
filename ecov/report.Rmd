@@ -366,7 +366,7 @@ make_bias_plot = function(cov_tab){
 }
 ```
 
-```{r cov-uniformity-load-agilent, fig.height=12, fig.width=12, cache=TRUE}
+```{r cov-uniformity-load-agilent, fig.height=12, fig.width=12, cache=TRUE, eval=FALSE, echo=FALSE}
 bias_tab = get_bias_cov(file.path(path_results,"bias"))
 make_bias_plot(bias_tab)    
 ```

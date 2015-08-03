@@ -135,6 +135,9 @@ def bcbio_metrics(args):
     with file_transaction(out_file) as out_tx:
         for s in project['samples']:
             m = s['summary']['metrics']
+            for me in m:
+                if isinstance(m[me], list):
+                    m[me] = ";".join(m[me])
             dt = pd.DataFrame.from_dict(m)
             dt.columns = [k.replace(" ", "_").replace("(", "").replace(")", "") for k in dt.columns]
             dt['sample'] = s['description']
@@ -214,13 +217,6 @@ def complete(args):
 
 def _new_complete(args):
     data = _read_final(args.bams[0])
-    print data
-    # config = _config(args)
-    # new_data = []
-    # for s in data:
-    #    data['name'] = s
-    #    data['config'] = config
-    #    new_data.append(data[s])
 
     assert args.reference, "need the reference genome"
     assert args.bams, "no files detected. Add vcf and bam files"
@@ -273,11 +269,11 @@ def _new_complete(args):
     data = _prepare_samples(new_args)
     average_exome_coverage(data, new_args)
 
-    print "doing bias-coverage"
-    new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', str(args.n_sample)] + galaxy + bam + cluster
-    new_args = params().parse_args(new_args)
-    data = _prepare_samples(new_args)
-    bias_exome_coverage(data, new_args)
+    # print "doing bias-coverage"
+    # new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', str(args.n_sample)] + galaxy + bam + cluster
+    # new_args = params().parse_args(new_args)
+    # data = _prepare_samples(new_args)
+    # bias_exome_coverage(data, new_args)
 
     print "doing cg-depth in vcf files"
     new_args = ['--run', 'cg-vcf', '--out', 'cg', '--region', args.region, '--reference', args.reference] + galaxy + bam + vcf + cluster
