@@ -216,7 +216,7 @@ def complete(args):
     print "doing report"
     report("report")
 
-def _new_complete(args):
+def _bcbio_complete(args):
     data = _read_final(args.bams[0])
 
     assert args.reference, "need the reference genome"
@@ -229,7 +229,7 @@ def _new_complete(args):
     fastqc = [d['qc']['fastqc'] for d in data.values() if 'qc' in d]
     yaml_file = args.bams[0]
 
-    assert len(vcf) == len(bam), "no paired bam/vcf files found. %s %s" % (vcf, bam)
+    # assert len(vcf) == len(bam), "no paired bam/vcf files found. %s %s" % (vcf, bam)
     assert yaml_file, "No bcbio yaml file found."
     assert fastqc, "No fastqc files"
 
@@ -264,11 +264,12 @@ def _new_complete(args):
     data = _prepare_samples(new_args)
     merge_fastq(data, new_args)
 
-    print "doing stats-coverage"
-    new_args = ['--run', 'stats-coverage', '--out', 'coverage', '--region', args.region] + galaxy + bam + cluster
-    new_args = params().parse_args(new_args)
-    data = _prepare_samples(new_args)
-    average_exome_coverage(data, new_args)
+    if args.regions:
+        print "doing stats-coverage"
+        new_args = ['--run', 'stats-coverage', '--out', 'coverage', '--region', args.region] + galaxy + bam + cluster
+        new_args = params().parse_args(new_args)
+        data = _prepare_samples(new_args)
+        average_exome_coverage(data, new_args)
 
     # print "doing bias-coverage"
     # new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', str(args.n_sample)] + galaxy + bam + cluster
@@ -276,11 +277,12 @@ def _new_complete(args):
     # data = _prepare_samples(new_args)
     # bias_exome_coverage(data, new_args)
 
-    print "doing cg-depth in vcf files"
-    new_args = ['--run', 'cg-vcf', '--out', 'cg', '--region', args.region, '--reference', args.reference] + galaxy + bam + vcf + cluster
-    new_args = params().parse_args(new_args)
-    data = _prepare_samples(new_args)
-    calculate_cg_depth_coverage(data, new_args)
+    if vcf:
+        print "doing cg-depth in vcf files"
+        new_args = ['--run', 'cg-vcf', '--out', 'cg', '--region', args.region, '--reference', args.reference] + galaxy + bam + vcf + cluster
+        new_args = params().parse_args(new_args)
+        data = _prepare_samples(new_args)
+        calculate_cg_depth_coverage(data, new_args)
 
     print "doing report"
     report("report")
@@ -366,7 +368,7 @@ if __name__ == "__main__":
         merge_fastq(data, args)
     elif args.run == "report":
         report(args)
-    elif args.run == "complete":
+    elif args.run == "all":
         complete(args)
     elif args.run == "final":
-        _new_complete(args)
+        _bcbio_complete(args)
