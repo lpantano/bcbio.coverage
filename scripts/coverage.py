@@ -12,15 +12,8 @@ import shutil
 from argparse import ArgumentParser
 import yaml
 import os.path as op
-# import matplotlib.pyplot as plt
-# from matplotlib.backends.backend_pdf import PdfPages
-# import matplotlib
-# import seaborn as sns
 from ichwrapper import cluster, arguments
-# import pandas as pd
-# from collections import defaultdict
 
-# import pybedtools
 
 from bcbio.utils import file_exists, splitext_plus, safe_makedir, rbind
 # from bcbio.provenance import do
@@ -223,7 +216,8 @@ def _bcbio_complete(args):
     assert args.bams, "no files detected. Add vcf and bam files"
     assert args.region, "need region bed file"
 
-    vcf_type = data.values()[0]['vcf'].keys()[0]
+    if "vcf" in data.values()[0]:
+        vcf_type = data.values()[0]['vcf'].keys()[0]
     vcf = [d['vcf'][vcf_type] for d in data.values() if 'vcf' in d]
     bam = [d['bam']['ready'] for d in data.values() if 'bam' in d]
     fastqc = [d['qc']['fastqc'] for d in data.values() if 'qc' in d]
@@ -245,8 +239,9 @@ def _bcbio_complete(args):
 
     print "copy qsignature"
     fn = glob.glob(op.join(_get_final_folder(yaml_file)['upload'], "*/mixup_check/qsignature.ma"))
-    if file_exists(fn[0]) and not file_exists("qsignature.ma"):
-        shutil.copy(fn[0], "qsignature.ma")
+    if fn:
+        if file_exists(fn[0]) and not file_exists("qsignature.ma"):
+            shutil.copy(fn[0], "qsignature.ma")
 
     print "doing basic-bam"
     new_args = ['--run', 'basic-bam', '--out', 'basic-bam'] + galaxy + bam
@@ -321,7 +316,9 @@ def _read_final(yaml_file):
             continue
         fn_type, ext = splitext_plus(rel_path.split(os.sep)[1].replace(sample + "-", ""))
         if fn_type == "qc":
-            data[sample]["qc"] = _read_qc_files(fn)
+            is_there =  _read_qc_files(fn)
+            if is_there:
+                data[sample]["qc"] = is_there
             continue
         ext = ext.replace(".gz", "")[1:]
         if ext not in data[sample]:
