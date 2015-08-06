@@ -10,17 +10,20 @@ from bcbio.log import logger
 from bcbio.pipeline import config_utils
 from bcbio import broad
 
-def calc_variants_stats(data, args):
-    in_vcf = data['vcf']
-    ref_file = args.reference
+def calc_variants_stats(data):
+    if not data[0]['vcf']:
+        return False
+    in_vcf = data[0]['vcf'].values()[0]
+    ref_file = data[0]['reference']
+    assert ref_file, "Need the reference genome fasta file."
     # gatk_jar = '/groups/bcbio/bcbio/toolplus/gatk/3.2-2-gec30cee/GenomeAnalysisTK.jar'
-    jvm_opts = broad.get_gatk_framework_opts(data['config'])
-    gatk_jar = config_utils.get_program("gatk", data['config'], "dir")
-    bed_file = args.region
+    jvm_opts = broad.get_gatk_framework_opts(data[0]['config'])
+    gatk_jar = config_utils.get_program("gatk", data[0]['config'], "dir")
+    bed_file = data[0]['region']
     sample = splitext_plus(op.basename(in_vcf))[0]
-    in_bam = data['bam']
-    cg_file = op.join(args.out, sample + "_with-gc.vcf.gz")
-    parse_file = op.join(args.out, sample + "_cg-depth-parse.tsv")
+    in_bam = data[0]['bam']['ready']
+    cg_file = op.join(sample + "_with-gc.vcf.gz")
+    parse_file = op.join(sample + "_cg-depth-parse.tsv")
     if not file_exists(cg_file):
         with file_transaction(cg_file) as tx_out:
             cmd = ("java -jar {gatk_jar}/GenomeAnalysisTK.jar -T VariantAnnotator -R {ref_file} "

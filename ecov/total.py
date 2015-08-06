@@ -78,14 +78,13 @@ def _get_exome_coverage_stats(fn, sample, out_file, total_cov):
 def _silence_run(cmd):
     do._do_run(cmd, False)
 
-def _calc_total_exome_coverage(data, args):
-    in_bam = data['bam']
-    out_dir = args.out
-    bed_file = args.region
+def _calc_total_exome_coverage(data):
+    in_bam = data[0]['bam']['ready']
+    bed_file = data[0]['region']
     sample = op.splitext(os.path.basename(in_bam))[0]
-    region_bed = pybedtools.BedTool(args.region)
-    parse_file = op.join(out_dir, sample + "_cov.tsv")
-    parse_total_file = op.join(out_dir, sample + "_cov_total.tsv")
+    region_bed = pybedtools.BedTool(bed_file)
+    parse_file = op.join(sample + "_cov.tsv")
+    parse_total_file = op.join(sample + "_cov_total.tsv")
     if not file_exists(parse_file):
         total_cov = cov_class(0, None, sample)
         bam_api = pysam.AlignmentFile(in_bam)

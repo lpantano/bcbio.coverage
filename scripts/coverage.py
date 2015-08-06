@@ -12,10 +12,19 @@ import shutil
 from argparse import ArgumentParser
 import yaml
 import os.path as op
-from ichwrapper import cluster, arguments
+# from ichwrapper import cluster, arguments
 
-
-from bcbio.utils import file_exists, splitext_plus, safe_makedir, rbind
+from cluster_helper import cluster as ipc
+from bcbio import log
+from bcbio.log import logger
+from bcbio.install import _get_data_dir
+from bcbio import utils
+from bcbio.bam import is_bam
+from bcbio.bam.fastq import is_fastq, combine_pairs
+from bcbio.distributed.transaction import file_transaction
+from bcbio.distributed import clargs, resources, prun
+from bcbio.provenance import system, profile
+from bcbio.utils import file_exists, splitext_plus, safe_makedir, rbind, chdir
 # from bcbio.provenance import do
 from bcbio.distributed.transaction import file_transaction
 from bcbio.install import _get_data_dir
@@ -96,34 +105,18 @@ def _prepare_samples(args):
         data.append([dt])
     return data
 
-def calculate_cg_depth_coverage(data, args):
-    safe_makedir(args.out)
-    resources = {'name': 'vcf_stats', 'mem': 2, 'cores': 1}
-    data = _update_algorithm(data, resources)
-    cluster.send_job(calc_variants_stats, data, args, resources)
-
 def bias_exome_coverage(data, args):
     safe_makedir(args.out)
     resources = {'name': 'bias', 'mem': 1, 'cores': 1}
     data = _update_algorithm(data, resources)
     cluster.send_job(calculate_bias_over_multiple_regions, data, args, resources)
 
-def average_exome_coverage(data, args):
-    # dfs = [_calc_total_exome_coverage(bam, bed_file) for bam in in_bams]
-    safe_makedir(args.out)
-    resources = {'name': 'bedtools', 'mem': 8, 'cores': 1}
-    data = _update_algorithm(data, resources)
-    cluster.send_job(_calc_total_exome_coverage, data, args, resources)
-    # df = rbind(dfs)
-    # df.to_csv(tx_out_file, mode='a', index=False, header=["r10", "r25", "r50", "region", "size", "sample"])
-
-def bcbio_metrics(args):
+def bcbio_metrics(yaml_file):
     """
     parse project.yaml file to get metrics for each bam
     """
-    project = yaml.load(open(args.bams[0]))
-    out_dir = safe_makedir(args.out)
-    out_file = op.join(out_dir, "metrics.tsv")
+    project = yaml.load(open(yaml_file))
+    out_file = op.join("metrics", "metrics.tsv")
     dt_together = []
     with file_transaction(out_file) as out_tx:
         for s in project['samples']:
@@ -209,62 +202,66 @@ def complete(args):
     print "doing report"
     report("report")
 
-def _bcbio_complete(args):
-    data = _read_final(args.bams[0])
+def _bcbio_complete(samples, parallel, args):
 
-    assert args.reference, "need the reference genome"
-    assert args.bams, "no files detected. Add vcf and bam files"
-    assert args.region, "need region bed file"
+    # assert args.reference, "need the reference genome"
+    assert args.files, "no files detected. Add vcf and bam files"
+    # assert args.region, "need region bed file"
 
-    if "vcf" in data.values()[0]:
-        vcf_type = data.values()[0]['vcf'].keys()[0]
-    vcf = [d['vcf'][vcf_type] for d in data.values() if 'vcf' in d]
-    bam = [d['bam']['ready'] for d in data.values() if 'bam' in d]
-    fastqc = [d['qc']['fastqc'] for d in data.values() if 'qc' in d]
-    yaml_file = args.bams[0]
-
-    # assert len(vcf) == len(bam), "no paired bam/vcf files found. %s %s" % (vcf, bam)
-    assert yaml_file, "No bcbio yaml file found."
-    assert fastqc, "No fastqc files"
-
-    cluster = []
-    if args.scheduler:
-        cluster = ['-n', args.numcores, '-s', args.scheduler, '-q', args.queue, '-p', args.tag, '-t', args.paralleltype]
-        if args.resources:
-            cluster += ['-r'] + args.resources
-    cluster = map(str, cluster)
-    galaxy = []
-    if args.galaxy:
-        galaxy = ['--galaxy', args.galaxy]
-
+    yaml_file = args.files[0]
     print "copy qsignature"
     fn = glob.glob(op.join(_get_final_folder(yaml_file)['upload'], "*/mixup_check/qsignature.ma"))
     if fn:
         if file_exists(fn[0]) and not file_exists("qsignature.ma"):
             shutil.copy(fn[0], "qsignature.ma")
 
-    print "doing basic-bam"
-    new_args = ['--run', 'basic-bam', '--out', 'basic-bam'] + galaxy + bam
-    new_args = params().parse_args(new_args)
-    calculate_bam(new_args)
+    print samples
+    parallel.update({'progs': ['samtools']})
+    parallel = log.create_base_logger(config, parallel)
+    log.setup_local_logging(config, parallel)
+    dirs = {'work': os.path.abspath(os.getcwd())}
+    system.write_info(dirs, parallel, config)
+    sysinfo = system.machine_info()[0]
+    parallel = resources.calculate(parallel, [samples], sysinfo, config)
 
-    print "doing metrics"
-    new_args = ['--run', 'metrics', '--out', 'metrics', yaml_file] + galaxy
-    new_args = params().parse_args(new_args)
-    bcbio_metrics(new_args)
+    with prun.start(parallel, samples, config, dirs) as run_parallel:
+        with profile.report("basic bam metrics", dirs):
+            out_dir = safe_makedir("flagstat")
+            with chdir(out_dir):
+                samples = run_parallel(calculate_bam, samples)
 
-    print "doing fastqc parsing"
-    new_args = ['--run', 'fastqc', '--out', 'fastqc'] + galaxy + fastqc + bam
-    new_args = params().parse_args(new_args)
-    data = _prepare_samples(new_args)
-    merge_fastq(data, new_args)
+                out_file = op.join("flagstat.tsv")
+                stats = defaultdict(list)
+                samples_name = []
+                for sample in samples:
+                    samples_name.append(sample[0]['name'])
+                    with open(sample[0]["flagstat"]) as in_handle:
+                        for line in in_handle:
+                            if line.find("mapQ") == -1:
+                                stats[line.strip().split(" + 0 ")[1].split("(")[0].strip()].append(line.strip().split(" + ")[0])
+                with open(out_file, 'w') as out_handle:
+                    out_handle.write("\t".join(['measure'] + samples_name) + '\n')
+                    for feature in stats:
+                        out_handle.write("\t".join([feature] + stats[feature]) + "\n")
 
-    if args.regions:
-        print "doing stats-coverage"
-        new_args = ['--run', 'stats-coverage', '--out', 'coverage', '--region', args.region] + galaxy + bam + cluster
-        new_args = params().parse_args(new_args)
-        data = _prepare_samples(new_args)
-        average_exome_coverage(data, new_args)
+        with profile.report("bcbio bam metrics", dirs):
+            bcbio_metrics(yaml_file)
+
+        with profile.report("bcbio fastq metrics", dirs):
+            out_dir = safe_makedir("fastq")
+            with chdir(out_dir):
+                merge_fastq(samples)
+
+        if args.region:
+            with profile.report("doing coverage regions", dirs):
+                out_dir = safe_makedir("coverage")
+                with chdir(out_dir):
+                    run_parallel(_calc_total_exome_coverage, samples)
+
+        with profile.report("doing cg-depth in vcf files", dirs):
+            out_dir = safe_makedir("cg")
+            with chdir(out_dir):
+                run_parallel(calc_variants_stats, samples)
 
     # print "doing bias-coverage"
     # new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', str(args.n_sample)] + galaxy + bam + cluster
@@ -272,12 +269,6 @@ def _bcbio_complete(args):
     # data = _prepare_samples(new_args)
     # bias_exome_coverage(data, new_args)
 
-    if vcf:
-        print "doing cg-depth in vcf files"
-        new_args = ['--run', 'cg-vcf', '--out', 'cg', '--region', args.region, '--reference', args.reference] + galaxy + bam + vcf + cluster
-        new_args = params().parse_args(new_args)
-        data = _prepare_samples(new_args)
-        calculate_cg_depth_coverage(data, new_args)
 
     print "doing report"
     report("report")
@@ -298,7 +289,7 @@ def _get_final_folder(yaml_file):
     project = yaml.load(open(yaml_file))
     return project
 
-def _read_final(yaml_file):
+def _read_final(yaml_file, args, config):
     """
     Get files for each sample from the bcbio upload folder
     """
@@ -314,6 +305,7 @@ def _read_final(yaml_file):
         sample = rel_path.split(os.sep)[0]
         if sample not in samples:
             continue
+        data[sample]['name'] = sample
         fn_type, ext = splitext_plus(rel_path.split(os.sep)[1].replace(sample + "-", ""))
         if fn_type == "qc":
             is_there =  _read_qc_files(fn)
@@ -324,18 +316,42 @@ def _read_final(yaml_file):
         if ext not in data[sample]:
             data[sample][ext] = {}
         data[sample][ext].update({fn_type: fn})
-    return data
+    for sample in data:
+        data[sample]['config'] = config
+        data[sample]["region"] = op.abspath(args.region) if args.region else ""
+        data[sample]["reference"] = op.abspath(args.reference) if args.reference else ""
+    return [[data[sample]] for sample in data]
 
 def params():
     parser = ArgumentParser(description="Create file with coverage of a region")
-    parser = arguments.myargs(parser)
     parser.add_argument("--region", help="bed file with regions.")
     parser.add_argument("--reference", help="genome fasta file.")
     parser.add_argument("--out", help="output file.")
-    parser.add_argument("bams", nargs="*", help="Bam files.")
-    parser.add_argument("--run", required=True, help="type of analysis", choices=['complete', 'report', 'metrics', 'basic-bam', 'cg-vcf', 'stats-coverage', 'tstv', 'bias-coverage', 'plot', 'fastqc', 'final'])
+    parser.add_argument("files", nargs="*", help="Bam files.")
+    parser.add_argument("--run", required=True, help="type of analysis", choices=['all', 'report', 'bcbio'])
     parser.add_argument("--n_sample", default=1000, help="sample bed files with this number of lines")
     parser.add_argument("--seed", help="replication of sampling")
+    parser.add_argument("-n", "--numcores", type=int,
+                        default=1, help="Number of concurrent jobs to process.")
+    parser.add_argument("-c", "--cores-per-job", type=int,
+                        default=1, help="Number of cores to use.")
+    parser.add_argument("-m", "--memory-per-job", default=2, help="Memory in GB to reserve per job.")
+    parser.add_argument("--timeout", default=15, help="Time to wait before giving up starting.")
+    parser.add_argument("--retries", default=0, type=int,
+                        help=("Number of retries of failed tasks during "
+                              "distributed processing. Default 0 "
+                              "(no retries)"))
+    parser.add_argument("-s", "--scheduler", help="Type of scheduler to use.",
+                        choices=["lsf", "slurm", "torque", "sge", "pbspro"])
+    parser.add_argument("-r", "--resources", help="Extra scheduler resource flags.", default=[], action="append")
+    parser.add_argument("-q", "--queue", help="Queue to submit jobs to.")
+    parser.add_argument("-p", "--tag", help="Tag name to label jobs on the cluster", default="bcb-prep")
+    parser.add_argument("-t", "--paralleltype",
+                        choices=["local", "ipython"],
+                        default="local", help="Run with iptyhon")
+    parser.add_argument("--galaxy", help="galaxy file.")
+
+
     return parser
 
 
@@ -343,29 +359,18 @@ if __name__ == "__main__":
     parser = params()
     args = parser.parse_args()
 
-    if args.run == "stats-coverage":
-        data = _prepare_samples(args)
-        average_exome_coverage(data, args)
-    elif args.run == "bias-coverage":
-        data = _prepare_samples(args)
-        bias_exome_coverage(data, args)
-    elif args.run == "tstv":
-        calculate_tstv(args)
-    elif args.run == "basic-bam":
-        calculate_bam(args)
-    elif args.run == "metrics":
-        bcbio_metrics(args)
-    elif args.run == "cg-vcf":
-        data = _prepare_samples(args)
-        calculate_cg_depth_coverage(data, args)
-    elif args.run == "plot":
-        save_multiple_regions_coverage(args.bams, args.out, args.region)
-    elif args.run == "fastqc":
-        data = _prepare_samples(args)
-        merge_fastq(data, args)
-    elif args.run == "report":
+    system_config = _config(args)
+    with open(system_config) as in_handle:
+        config = yaml.load(in_handle)
+        config["log_dir"] = os.path.join(os.path.abspath(os.getcwd()), "log")
+        config["algorithm"] = {"num_cores": 1}
+
+    parallel = clargs.to_parallel(args)
+    samples = _read_final(args.files[0], args, config)
+
+    if args.run == "report":
         report(args)
-    elif args.run == "all":
-        complete(args)
-    elif args.run == "final":
-        _bcbio_complete(args)
+    # elif args.run == "all":
+    #    complete(args)
+    elif args.run == "bcbio":
+        _bcbio_complete(samples, parallel, args)

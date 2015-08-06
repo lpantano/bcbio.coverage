@@ -9,32 +9,20 @@ from bcbio.distributed.transaction import file_transaction
 from bcbio.utils import file_exists, safe_makedir
 
 
-def calculate_bam(args):
+def calculate_bam(data):
     """
     samtools flagstat output
     """
-    out_dir = safe_makedir(args.out)
-    out_file = op.join(out_dir, "flagstat.tsv")
-    stats = defaultdict(list)
-    samples = []
-    for bam in args.bams:
-        # sample = os.path.splitext(bam)[0].split("-")[0]
-        sample = os.path.basename(bam).split("-")[0].replace(".bam", "")
-        out_sample = op.join(out_dir, sample + ".flagstat")
-        if not file_exists(out_sample):
-            with file_transaction(out_sample) as tx_out:
-                cmd = ("samtools flagstat {bam} > {tx_out}")
-                do.run(cmd.format(**locals()), "bam stats for %s" % bam)
-        with open(out_sample) as in_handle:
-            for line in in_handle:
-                if line.find("mapQ") == -1:
-                    stats[line.strip().split(" + 0 ")[1].split("(")[0].strip()].append(line.strip().split(" + ")[0])
-                # print stats[sample]
-        samples.append(sample)
-    with open(out_file, 'w') as out_handle:
-        out_handle.write("\t".join(['measure'] + samples) + '\n')
-        for feature in stats:
-            out_handle.write("\t".join([feature] + stats[feature]) + "\n")
+    bam = data[0]["bam"]["ready"]
+    sample = os.path.basename(bam).split("-")[0].replace(".bam", "")
+    out_sample = op.join(sample + ".flagstat")
+    if not file_exists(out_sample):
+        with file_transaction(out_sample) as tx_out:
+            cmd = ("samtools flagstat {bam} > {tx_out}")
+            do.run(cmd.format(**locals()), "bam stats for %s" % bam)
+            # print stats[sample]
+    data[0]["flagstat"] = op.abspath(out_sample)
+    return [data]
 
 def calculate_tstv(args):
     """

@@ -34,19 +34,18 @@ def _get_module(fastq_list, module, wide=True):
     return dt_together
 
 
-def merge_fastq(data, args):
+def merge_fastq(data):
     """
     merge all fastqc samples into one by module
     """
-    out_dir = safe_makedir(args.out)
     fastqc_list = {}
     for s in data:
         name = s[0]['name']
-        fn = s[0]['fastqc']
+        fn = s[0]['qc']['fastqc']
         fastqc_list[name] = Fadapa(fn)
 
     module = [m[1] for m in fastqc_list[name].summary()][2:9]
     for m in module:
-        out_file = op.join(out_dir, m.replace(" ", "_") + ".tsv")
+        out_file = op.join(m.replace(" ", "_") + ".tsv")
         dt = _get_module(fastqc_list, m)
         dt.to_csv(out_file, sep="\t", index=False)
