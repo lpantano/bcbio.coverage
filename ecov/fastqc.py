@@ -33,7 +33,6 @@ def _get_module(fastq_list, module, wide=True):
     dt_together = rbind(dt_together)
     return dt_together
 
-
 def merge_fastq(data):
     """
     merge all fastqc samples into one by module
@@ -49,3 +48,4 @@ def merge_fastq(data):
         out_file = op.join(m.replace(" ", "_") + ".tsv")
         dt = _get_module(fastqc_list, m)
         dt.to_csv(out_file, sep="\t", index=False)
+    return [data]

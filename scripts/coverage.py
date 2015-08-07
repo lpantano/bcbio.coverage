@@ -12,6 +12,7 @@ import shutil
 from argparse import ArgumentParser
 import yaml
 import os.path as op
+# from IPython.parallel import require
 # from ichwrapper import cluster, arguments
 
 from cluster_helper import cluster as ipc
@@ -29,11 +30,10 @@ from bcbio.utils import file_exists, splitext_plus, safe_makedir, rbind, chdir
 from bcbio.distributed.transaction import file_transaction
 from bcbio.install import _get_data_dir
 
-from ecov.total import _calc_total_exome_coverage
+from ecov.manage import process_coverage, process_bams,process_variants
 from ecov.bias import calculate_bias_over_multiple_regions
-from ecov.variants import calc_variants_stats
 from ecov.select import save_multiple_regions_coverage
-from ecov.basic import calculate_bam, calculate_tstv
+from ecov import basic
 from ecov.fastqc import merge_fastq
 
 def _find_bam(bam_files, sample):
@@ -79,7 +79,7 @@ def _config(args):
         system_config = op.join(_get_data_dir(), "galaxy", "bcbio_system.yaml")
     config = yaml.load(open(system_config))
     config['algorithm'] = {}
-    return config
+    return system_config
 
 def _prepare_samples(args):
     """
@@ -111,11 +111,11 @@ def bias_exome_coverage(data, args):
     data = _update_algorithm(data, resources)
     cluster.send_job(calculate_bias_over_multiple_regions, data, args, resources)
 
-def bcbio_metrics(yaml_file):
+def bcbio_metrics(yaml_data):
     """
     parse project.yaml file to get metrics for each bam
     """
-    project = yaml.load(open(yaml_file))
+    project = yaml_data
     out_file = op.join("metrics", "metrics.tsv")
     dt_together = []
     with file_transaction(out_file) as out_tx:
@@ -202,20 +202,18 @@ def complete(args):
     print "doing report"
     report("report")
 
-def _bcbio_complete(samples, parallel, args):
+def _bcbio_complete(samples, parallel, summary, qsignature=None, region=None):
 
     # assert args.reference, "need the reference genome"
-    assert args.files, "no files detected. Add vcf and bam files"
     # assert args.region, "need region bed file"
 
-    yaml_file = args.files[0]
-    print "copy qsignature"
-    fn = glob.glob(op.join(_get_final_folder(yaml_file)['upload'], "*/mixup_check/qsignature.ma"))
-    if fn:
-        if file_exists(fn[0]) and not file_exists("qsignature.ma"):
-            shutil.copy(fn[0], "qsignature.ma")
+    # region = args.region
+    # yaml_file = args.files[0]
+    logger.info("copy qsignature")
+    if qsignature:
+        if file_exists(qsignature) and not file_exists("qsignature.ma"):
+            shutil.copy(qsignature, "qsignature.ma")
 
-    print samples
     parallel.update({'progs': ['samtools']})
     parallel = log.create_base_logger(config, parallel)
     log.setup_local_logging(config, parallel)
@@ -227,9 +225,9 @@ def _bcbio_complete(samples, parallel, args):
     with prun.start(parallel, samples, config, dirs) as run_parallel:
         with profile.report("basic bam metrics", dirs):
             out_dir = safe_makedir("flagstat")
-            with chdir(out_dir):
-                samples = run_parallel(calculate_bam, samples)
+            samples = run_parallel(process_bams, samples)
 
+            with chdir(out_dir):
                 out_file = op.join("flagstat.tsv")
                 stats = defaultdict(list)
                 samples_name = []
@@ -245,23 +243,21 @@ def _bcbio_complete(samples, parallel, args):
                         out_handle.write("\t".join([feature] + stats[feature]) + "\n")
 
         with profile.report("bcbio bam metrics", dirs):
-            bcbio_metrics(yaml_file)
+            bcbio_metrics(summary)
 
         with profile.report("bcbio fastq metrics", dirs):
             out_dir = safe_makedir("fastq")
             with chdir(out_dir):
                 merge_fastq(samples)
 
-        if args.region:
+        if region:
             with profile.report("doing coverage regions", dirs):
                 out_dir = safe_makedir("coverage")
-                with chdir(out_dir):
-                    run_parallel(_calc_total_exome_coverage, samples)
+                run_parallel(process_coverage, samples)
 
         with profile.report("doing cg-depth in vcf files", dirs):
             out_dir = safe_makedir("cg")
-            with chdir(out_dir):
-                run_parallel(calc_variants_stats, samples)
+            run_parallel(process_variants, samples)
 
     # print "doing bias-coverage"
     # new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', str(args.n_sample)] + galaxy + bam + cluster
@@ -345,7 +341,7 @@ def params():
                         choices=["lsf", "slurm", "torque", "sge", "pbspro"])
     parser.add_argument("-r", "--resources", help="Extra scheduler resource flags.", default=[], action="append")
     parser.add_argument("-q", "--queue", help="Queue to submit jobs to.")
-    parser.add_argument("-p", "--tag", help="Tag name to label jobs on the cluster", default="bcb-prep")
+    parser.add_argument("-p", "--tag", help="Tag name to label jobs on the cluster", default="bcb-cov")
     parser.add_argument("-t", "--paralleltype",
                         choices=["local", "ipython"],
                         default="local", help="Run with iptyhon")
@@ -358,6 +354,7 @@ def params():
 if __name__ == "__main__":
     parser = params()
     args = parser.parse_args()
+    assert args.files, "no files detected. Add vcf and bam files"
 
     system_config = _config(args)
     with open(system_config) as in_handle:
@@ -367,10 +364,14 @@ if __name__ == "__main__":
 
     parallel = clargs.to_parallel(args)
     samples = _read_final(args.files[0], args, config)
-
+    project = _get_final_folder(args.files[0])
+    final_folder = project['upload']
+    summary = yaml.load(open(args.files[0]))
+    qsignature = glob.glob(op.join(summary['upload'], "*/mixup_check/qsignature.ma"))
+    qsignature = qsignature if qsignature else None
     if args.run == "report":
         report(args)
     # elif args.run == "all":
     #    complete(args)
     elif args.run == "bcbio":
-        _bcbio_complete(samples, parallel, args)
+        _bcbio_complete(samples, parallel, summary, qsignature, args.region)
