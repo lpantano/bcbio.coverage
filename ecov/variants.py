@@ -1,7 +1,6 @@
 import os
 import os.path as op
 import pandas as pd
-# from collections import Counter
 
 from bcbio.utils import rbind, file_exists, splitext_plus, chdir
 from bcbio.provenance import do
@@ -18,7 +17,6 @@ def variants(data):
         in_vcf = data['vcf'].values()[0]
         ref_file = data['reference']
         assert ref_file, "Need the reference genome fasta file."
-        # gatk_jar = '/groups/bcbio/bcbio/toolplus/gatk/3.2-2-gec30cee/GenomeAnalysisTK.jar'
         jvm_opts = broad.get_gatk_framework_opts(data['config'])
         gatk_jar = config_utils.get_program("gatk", data['config'], "dir")
         bed_file = data['region']

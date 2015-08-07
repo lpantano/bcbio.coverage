@@ -111,7 +111,7 @@ def bias_exome_coverage(data, args):
     data = _update_algorithm(data, resources)
     cluster.send_job(calculate_bias_over_multiple_regions, data, args, resources)
 
-def bcbio_metrics(yaml_data):
+def _bcbio_metrics(yaml_data):
     """
     parse project.yaml file to get metrics for each bam
     """
@@ -144,7 +144,7 @@ def report(out_dir):
     with open(out_file, 'w') as out_handle:
         print >>out_handle, out_content
 
-def complete(args):
+def _complete(args):
     """
     Run all modules
     """
@@ -202,62 +202,57 @@ def complete(args):
     print "doing report"
     report("report")
 
-def _bcbio_complete(samples, parallel, summary, qsignature=None, region=None):
+def _bcbio_complete(run_parallel, samples, summary, qsignature=None, region=None):
+    """
+    samples is a list for each sample. sample[0] is a dict with the following keys:
+        [name] = name
+        [bam][ready] = bam file
+        [vcf][caller] = vcf file
+        [qc][fastqc] = data.txt from fastqc
+        [region] = region in bed file
+        [reference] = reference in fasta format
+    """
 
-    # assert args.reference, "need the reference genome"
-    # assert args.region, "need region bed file"
-
-    # region = args.region
-    # yaml_file = args.files[0]
     logger.info("copy qsignature")
     if qsignature:
         if file_exists(qsignature) and not file_exists("qsignature.ma"):
             shutil.copy(qsignature, "qsignature.ma")
 
-    parallel.update({'progs': ['samtools']})
-    parallel = log.create_base_logger(config, parallel)
-    log.setup_local_logging(config, parallel)
-    dirs = {'work': os.path.abspath(os.getcwd())}
-    system.write_info(dirs, parallel, config)
-    sysinfo = system.machine_info()[0]
-    parallel = resources.calculate(parallel, [samples], sysinfo, config)
+    with profile.report("basic bam metrics", dirs):
+        out_dir = safe_makedir("flagstat")
+        samples = run_parallel(process_bams, samples)
 
-    with prun.start(parallel, samples, config, dirs) as run_parallel:
-        with profile.report("basic bam metrics", dirs):
-            out_dir = safe_makedir("flagstat")
-            samples = run_parallel(process_bams, samples)
+        with chdir(out_dir):
+            out_file = op.join("flagstat.tsv")
+            stats = defaultdict(list)
+            samples_name = []
+            for sample in samples:
+                samples_name.append(sample[0]['name'])
+                with open(sample[0]["flagstat"]) as in_handle:
+                    for line in in_handle:
+                        if line.find("mapQ") == -1:
+                            stats[line.strip().split(" + 0 ")[1].split("(")[0].strip()].append(line.strip().split(" + ")[0])
+            with open(out_file, 'w') as out_handle:
+                out_handle.write("\t".join(['measure'] + samples_name) + '\n')
+                for feature in stats:
+                    out_handle.write("\t".join([feature] + stats[feature]) + "\n")
 
-            with chdir(out_dir):
-                out_file = op.join("flagstat.tsv")
-                stats = defaultdict(list)
-                samples_name = []
-                for sample in samples:
-                    samples_name.append(sample[0]['name'])
-                    with open(sample[0]["flagstat"]) as in_handle:
-                        for line in in_handle:
-                            if line.find("mapQ") == -1:
-                                stats[line.strip().split(" + 0 ")[1].split("(")[0].strip()].append(line.strip().split(" + ")[0])
-                with open(out_file, 'w') as out_handle:
-                    out_handle.write("\t".join(['measure'] + samples_name) + '\n')
-                    for feature in stats:
-                        out_handle.write("\t".join([feature] + stats[feature]) + "\n")
+    with profile.report("bcbio bam metrics", dirs):
+        _bcbio_metrics(summary)
 
-        with profile.report("bcbio bam metrics", dirs):
-            bcbio_metrics(summary)
+    with profile.report("bcbio fastq metrics", dirs):
+        out_dir = safe_makedir("fastq")
+        with chdir(out_dir):
+            merge_fastq(samples)
 
-        with profile.report("bcbio fastq metrics", dirs):
-            out_dir = safe_makedir("fastq")
-            with chdir(out_dir):
-                merge_fastq(samples)
+    if region:
+        with profile.report("doing coverage regions", dirs):
+            out_dir = safe_makedir("coverage")
+            run_parallel(process_coverage, samples)
 
-        if region:
-            with profile.report("doing coverage regions", dirs):
-                out_dir = safe_makedir("coverage")
-                run_parallel(process_coverage, samples)
-
-        with profile.report("doing cg-depth in vcf files", dirs):
-            out_dir = safe_makedir("cg")
-            run_parallel(process_variants, samples)
+    with profile.report("doing cg-depth in vcf files", dirs):
+        out_dir = safe_makedir("cg")
+        run_parallel(process_variants, samples)
 
     # print "doing bias-coverage"
     # new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', str(args.n_sample)] + galaxy + bam + cluster
@@ -368,10 +363,20 @@ if __name__ == "__main__":
     final_folder = project['upload']
     summary = yaml.load(open(args.files[0]))
     qsignature = glob.glob(op.join(summary['upload'], "*/mixup_check/qsignature.ma"))
-    qsignature = qsignature if qsignature else None
+    qsignature = qsignature[0] if qsignature else None
     if args.run == "report":
         report(args)
     # elif args.run == "all":
     #    complete(args)
     elif args.run == "bcbio":
-        _bcbio_complete(samples, parallel, summary, qsignature, args.region)
+
+        parallel.update({'progs': ['samtools']})
+        parallel = log.create_base_logger(config, parallel)
+        log.setup_local_logging(config, parallel)
+        dirs = {'work': os.path.abspath(os.getcwd())}
+        system.write_info(dirs, parallel, config)
+        sysinfo = system.machine_info()[0]
+        parallel = resources.calculate(parallel, [samples], sysinfo, config)
+
+        with prun.start(parallel, samples, config, dirs) as run_parallel:
+            _bcbio_complete(run_parallel, samples, summary, qsignature, args.region)
