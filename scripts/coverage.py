@@ -2,9 +2,6 @@
 calculate coverage across a list of regions
 """
 import os
-from collections import namedtuple, defaultdict
-import pandas as pd
-import string
 import glob
 import shutil
 
@@ -24,7 +21,7 @@ from bcbio.provenance import system
 from bcbio.distributed.transaction import file_transaction
 from bcbio.install import _get_data_dir
 
-from ecov.prepare import bcbio_complete, report
+from bcbiocov.prepare import bcbio_complete, report
 
 def _find_bam(bam_files, sample):
     """

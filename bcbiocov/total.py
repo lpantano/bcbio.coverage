@@ -4,6 +4,8 @@ import pandas as pd
 import subprocess
 from collections import Counter
 
+import numpy as np
+import math
 import pysam
 import pybedtools
 
@@ -16,26 +18,28 @@ from bcbio.log import logger
 class cov_class:
 
     def __init__(self, size, name, sample):
-        self.size = size
+        self.size = int(size)
         self.name = name
         self.sample = sample
-        self.cov = {'10': 0, '25': 0, '50': 0}
+        self.cov = {'4': 0, '10': 0, '20': 0, '50': 0}
         self.total = Counter()
+        self.raw = 0
 
     def update(self, size):
         self.size += size
 
     def save(self, cov, pt):
-        if cov > 10:
-            self.cov['10'] += pt
-        if cov > 25:
-            self.cov['25'] += pt
-        if cov > 50:
-            self.cov['50'] += pt
+        self.raw += cov
+        self.total[cov] = pt
+        for cut in [4, 10, 20, 50]:
+            if cov > cut:
+                self.cov[str(cut)] += pt
 
     def save_coverage(self, cov, nt):
         if cov > 100:
             cov = 100
+        elif cov > 10:
+            cov =  int(math.ceil(cov / 10.0)) * 10
         # self.size += size
         self.total[cov] += nt
 
@@ -46,9 +50,20 @@ class cov_class:
         df["sample"] = self.sample
         df.to_csv(out_file, mode='a', header=False, index=False, sep="\t")
 
+    def _noise(self):
+        m = np.average(map(int, self.total.keys()), weights=self.total.values())
+        x = []
+        [x.extend([k] * int(float(v) * self.size)) for k, v in self.total.items()]
+        sd = np.std(x)
+        return m, sd
+
     def write_completeness(self, out_file):
         # names = ["region", "size", "sample", "10", "25", "50"]
+        m, sd = self._noise()
         df = pd.DataFrame(self.cov, index=["1"])
+        df['mean'] = m
+        df['sdt'] = sd
+        df['total'] = self.raw
         df["region"] = self.name
         df["size"] = self.size
         df["sample"] = self.sample
@@ -91,7 +106,7 @@ def coverage(data):
             bam_api = pysam.AlignmentFile(in_bam)
             with file_transaction(parse_file) as out_tx:
                 with open(out_tx, 'w') as out_handle:
-                    print >>out_handle, "q10\tq25\tq50\tregion\tsize\tsample"
+                    print >>out_handle, "q10\tq20\tq4\tq50\tmean\tsdt\ttotal\tregion\tsize\tsample"
                 with tmpfile() as tx_tmp_file:
                     # tx_tmp_file = "tmpintersect"
                     for line in region_bed:

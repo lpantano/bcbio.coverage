@@ -8,8 +8,8 @@ with open("requirements.txt", "r") as f:
         install_requires = [x.strip() for x in f.readlines() if not x.startswith("#")]
 
 
-setup(name='ecov',
-      version='0.99.2',
+setup(name='bcbiocov',
+      version='0.99.3',
       description='exome coverage calculation',
       # long_description=readme(),
       classifiers=[
@@ -19,7 +19,7 @@ setup(name='ecov',
         'Topic :: Scientific/Engineering :: Bio-Informatics'
       ],
       keywords='custom pipelines',
-      package_data={'ecov': ['*.Rmd']},
+      package_data={'bcbiocov': ['*.Rmd']},
       # url='http://github.com/lpantano/ich-wrapper',
       author='Lorena Pantano',
       author_email='lpantano@iscb.org',

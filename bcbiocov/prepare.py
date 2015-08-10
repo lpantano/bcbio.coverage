@@ -8,11 +8,11 @@ from bcbio.utils import file_exists, splitext_plus, safe_makedir, rbind, chdir
 from bcbio.log import logger
 from bcbio.provenance import profile
 
-from ecov.manage import process_coverage, process_bams,process_variants
-from ecov.bias import calculate_bias_over_multiple_regions
-from ecov.select import save_multiple_regions_coverage
-from ecov import basic
-from ecov.fastqc import merge_fastq
+from bcbiocov.manage import process_coverage, process_bams,process_variants
+from bcbiocov.bias import calculate_bias_over_multiple_regions
+from bcbiocov.select import save_multiple_regions_coverage
+from bcbiocov import basic
+from bcbiocov.fastqc import merge_fastq
 
 def report(out_dir):
     """

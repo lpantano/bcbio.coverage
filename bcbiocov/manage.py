@@ -9,7 +9,7 @@ from bcbio import utils
 from functools import wraps
 from bcbio.log import logger
 
-from ecov import total, variants, basic
+from bcbiocov import total, variants, basic
 
 def adapt(f):
     @utils.map_wrap
