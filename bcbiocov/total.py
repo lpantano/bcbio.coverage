@@ -20,6 +20,7 @@ class cov_class:
     def __init__(self, size, name, sample):
         self.size = int(size)
         self.name = name
+        self.position = ""
         self.sample = sample
         self.cov = {'4': 0, '10': 0, '20': 0, '50': 0}
         self.total = Counter()
@@ -57,18 +58,11 @@ class cov_class:
         sd = np.std(x)
         return m, sd
 
-    def write_completeness(self, out_file):
-        # names = ["region", "size", "sample", "10", "25", "50"]
+    def write_regions(self, out_file):
         m, sd = self._noise()
-        df = pd.DataFrame(self.cov, index=["1"])
-        df['mean'] = m
-        df['sdt'] = sd
-        df['total'] = self.raw
-        df["region"] = self.name
-        df["size"] = self.size
-        df["sample"] = self.sample
-        df.to_csv(out_file, mode='a', header=False, index=False, sep="\t")
-        #return df
+        with open(out_file, 'a') as out_handle:
+            print >>out_handle, "\t".join(map(str, [self.position, self.name, self.raw,
+                                          "+", self.size, self.sample, m, sd] + self.cov.values()))
 
 def _get_exome_coverage_stats(fn, sample, out_file, total_cov):
     tmp_region = ""
@@ -78,16 +72,18 @@ def _get_exome_coverage_stats(fn, sample, out_file, total_cov):
             if line.startswith("all"):
                 continue
             cols = line.strip().split()
-            cur_region = "_".join(cols[0:2])
+            cur_region = "_".join(cols[0:3]) if isinstance(cols[3], str) else cols[3]
+            print line
             if cur_region != tmp_region:
                 if tmp_region != "":
-                    stats.write_completeness(out_file)
+                    stats.write_regions(out_file)
                 stats = cov_class(cols[-2], cur_region, sample)
+                stats.position = "\t".join(cols[0:3])
             stats.save(int(cols[-4]), float(cols[-1]))
             total_cov.save_coverage(int(cols[-4]), int(cols[-3]))
             tmp_region = cur_region
         total_cov.update(int(cols[-2]))
-        stats.write_completeness(out_file)
+        stats.write_regions(out_file)
     return total_cov
 
 def _silence_run(cmd):
@@ -106,7 +102,7 @@ def coverage(data):
             bam_api = pysam.AlignmentFile(in_bam)
             with file_transaction(parse_file) as out_tx:
                 with open(out_tx, 'w') as out_handle:
-                    print >>out_handle, "q10\tq20\tq4\tq50\tmean\tsdt\ttotal\tregion\tsize\tsample"
+                    print >>out_handle, "#chrom\tstart\tend\tregion\treads\tstrand\tsize\tsample\tmean\tsdt\tq10\tq20\tq4\tq50"
                 with tmpfile() as tx_tmp_file:
                     # tx_tmp_file = "tmpintersect"
                     for line in region_bed:
