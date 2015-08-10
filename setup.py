@@ -9,7 +9,7 @@ with open("requirements.txt", "r") as f:
 
 
 setup(name='ecov',
-      version='0.99.1',
+      version='0.99.2',
       description='exome coverage calculation',
       # long_description=readme(),
       classifiers=[

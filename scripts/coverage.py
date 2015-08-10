@@ -8,33 +8,23 @@ import string
 import glob
 import shutil
 
-# import six
 from argparse import ArgumentParser
 import yaml
 import os.path as op
-# from IPython.parallel import require
-# from ichwrapper import cluster, arguments
 
-from cluster_helper import cluster as ipc
 from bcbio import log
 from bcbio.log import logger
 from bcbio.install import _get_data_dir
 from bcbio import utils
+from bcbio.utils import file_exists, splitext_plus, safe_makedir, rbind, chdir
 from bcbio.bam import is_bam
 from bcbio.bam.fastq import is_fastq, combine_pairs
-from bcbio.distributed.transaction import file_transaction
 from bcbio.distributed import clargs, resources, prun
-from bcbio.provenance import system, profile
-from bcbio.utils import file_exists, splitext_plus, safe_makedir, rbind, chdir
-# from bcbio.provenance import do
+from bcbio.provenance import system
 from bcbio.distributed.transaction import file_transaction
 from bcbio.install import _get_data_dir
 
-from ecov.manage import process_coverage, process_bams,process_variants
-from ecov.bias import calculate_bias_over_multiple_regions
-from ecov.select import save_multiple_regions_coverage
-from ecov import basic
-from ecov.fastqc import merge_fastq
+from ecov.prepare import bcbio_complete, report
 
 def _find_bam(bam_files, sample):
     """
@@ -111,39 +101,6 @@ def bias_exome_coverage(data, args):
     data = _update_algorithm(data, resources)
     cluster.send_job(calculate_bias_over_multiple_regions, data, args, resources)
 
-def _bcbio_metrics(yaml_data):
-    """
-    parse project.yaml file to get metrics for each bam
-    """
-    project = yaml_data
-    out_file = op.join("metrics", "metrics.tsv")
-    dt_together = []
-    with file_transaction(out_file) as out_tx:
-        for s in project['samples']:
-            m = s['summary']['metrics']
-            for me in m:
-                if isinstance(m[me], list):
-                    m[me] = ":".join(m[me])
-            dt = pd.DataFrame(m, index=['1'])
-            # dt = pd.DataFrame.from_dict(m)
-            dt.columns = [k.replace(" ", "_").replace("(", "").replace(")", "") for k in dt.columns]
-            dt['sample'] = s['description']
-            dt_together.append(dt)
-        dt_together = rbind(dt_together)
-        dt_together.to_csv(out_tx, index=False, sep="\t")
-
-def report(out_dir):
-    """
-    create rmd template
-    """
-    out_dir = safe_makedir(out_dir)
-    template = os.path.normpath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../ecov/report.Rmd"))
-    content = open(template).read()
-    out_content = string.Template(content).safe_substitute({'path_results': op.abspath(".")})
-    out_file = op.join(out_dir, "report-ready.Rmd")
-    with open(out_file, 'w') as out_handle:
-        print >>out_handle, out_content
-
 def _complete(args):
     """
     Run all modules
@@ -198,68 +155,6 @@ def _complete(args):
     new_args = ['--run', 'cg-vcf', '--out', 'cg', '--region', args.region, '--reference', args.reference] + bam + vcf + cluster
     new_args = params().parse_args(new_args)
     calculate_cg_depth_coverage(data, new_args)
-
-    print "doing report"
-    report("report")
-
-def _bcbio_complete(run_parallel, samples, summary, qsignature=None, region=None):
-    """
-    samples is a list for each sample. sample[0] is a dict with the following keys:
-        [name] = name
-        [bam][ready] = bam file
-        [vcf][caller] = vcf file
-        [qc][fastqc] = data.txt from fastqc
-        [region] = region in bed file
-        [reference] = reference in fasta format
-    """
-
-    logger.info("copy qsignature")
-    if qsignature:
-        if file_exists(qsignature) and not file_exists("qsignature.ma"):
-            shutil.copy(qsignature, "qsignature.ma")
-
-    with profile.report("basic bam metrics", dirs):
-        out_dir = safe_makedir("flagstat")
-        samples = run_parallel(process_bams, samples)
-
-        with chdir(out_dir):
-            out_file = op.join("flagstat.tsv")
-            stats = defaultdict(list)
-            samples_name = []
-            for sample in samples:
-                samples_name.append(sample[0]['name'])
-                with open(sample[0]["flagstat"]) as in_handle:
-                    for line in in_handle:
-                        if line.find("mapQ") == -1:
-                            stats[line.strip().split(" + 0 ")[1].split("(")[0].strip()].append(line.strip().split(" + ")[0])
-            with open(out_file, 'w') as out_handle:
-                out_handle.write("\t".join(['measure'] + samples_name) + '\n')
-                for feature in stats:
-                    out_handle.write("\t".join([feature] + stats[feature]) + "\n")
-
-    with profile.report("bcbio bam metrics", dirs):
-        _bcbio_metrics(summary)
-
-    with profile.report("bcbio fastq metrics", dirs):
-        out_dir = safe_makedir("fastq")
-        with chdir(out_dir):
-            merge_fastq(samples)
-
-    if region:
-        with profile.report("doing coverage regions", dirs):
-            out_dir = safe_makedir("coverage")
-            run_parallel(process_coverage, samples)
-
-    with profile.report("doing cg-depth in vcf files", dirs):
-        out_dir = safe_makedir("cg")
-        run_parallel(process_variants, samples)
-
-    # print "doing bias-coverage"
-    # new_args = ['--run', 'bias-coverage', '--out', 'bias', '--region', args.region, '--n_sample', str(args.n_sample)] + galaxy + bam + cluster
-    # new_args = params().parse_args(new_args)
-    # data = _prepare_samples(new_args)
-    # bias_exome_coverage(data, new_args)
-
 
     print "doing report"
     report("report")
@@ -345,7 +240,6 @@ def params():
 
     return parser
 
-
 if __name__ == "__main__":
     parser = params()
     args = parser.parse_args()
@@ -379,4 +273,4 @@ if __name__ == "__main__":
         parallel = resources.calculate(parallel, [samples], sysinfo, config)
 
         with prun.start(parallel, samples, config, dirs) as run_parallel:
-            _bcbio_complete(run_parallel, samples, summary, qsignature, args.region)
+            bcbio_complete(run_parallel, samples, summary, dirs, qsignature, args.region)
