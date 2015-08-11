@@ -216,8 +216,8 @@ def _bcbio_complete(args):
     assert args.bams, "no files detected. Add vcf and bam files"
     assert args.region, "need region bed file"
 
-    if "vcf" in data.values()[0]:
-        vcf_type = data.values()[0]['vcf'].keys()[0]
+    if "vcf" in data.values():
+        vcf_type = data.values()['vcf'].keys()[0]
     vcf = [d['vcf'][vcf_type] for d in data.values() if 'vcf' in d]
     bam = [d['bam']['ready'] for d in data.values() if 'bam' in d]
     fastqc = [d['qc']['fastqc'] for d in data.values() if 'qc' in d]
