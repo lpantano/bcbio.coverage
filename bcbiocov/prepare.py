@@ -93,7 +93,7 @@ def bcbio_complete(run_parallel, samples, summary, dirs, qsignature=None, region
     if region:
         with profile.report("doing coverage regions", dirs):
             out_dir = safe_makedir("coverage")
-            run_parallel(process_coverage, samples)
+            samples = run_parallel(process_coverage, samples)
 
     with profile.report("doing cg-depth in vcf files", dirs):
         out_dir = safe_makedir("cg")
@@ -108,3 +108,4 @@ def bcbio_complete(run_parallel, samples, summary, dirs, qsignature=None, region
 
     print "doing report"
     report("report")
+    return samples

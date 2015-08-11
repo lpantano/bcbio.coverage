@@ -95,7 +95,7 @@ def coverage(data):
         bed_file = data['region']
         sample = op.splitext(os.path.basename(in_bam))[0]
         region_bed = pybedtools.BedTool(bed_file)
-        parse_file = op.join(sample + "_cov.tsv")
+        parse_file = op.join(sample + "_coverage.bed")
         parse_total_file = op.join(sample + "_cov_total.tsv")
         if not file_exists(parse_file):
             total_cov = cov_class(0, None, sample)
@@ -116,6 +116,6 @@ def coverage(data):
                         _silence_run(cmd.format(**locals()))
                         total_cov = _get_exome_coverage_stats(op.abspath(tx_tmp_file), sample, out_tx, total_cov)
             total_cov.write_coverage(parse_total_file)
-
+        data['coverage'] = op.abspath(parse_file)
         return [[data]]
 

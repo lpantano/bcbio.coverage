@@ -51,10 +51,6 @@ qc = read.table(file.path(path_results, "metrics", "metrics.tsv"),
 rownames(qc) = qc$sample
 qc$Mapped_reads_pct = as.numeric(gsub("%", "", qc$Mapped_reads_pct))
 qc$Duplicates_pct = as.numeric(gsub("%", "", qc$Duplicates_pct))
-
-qc_plus= read.table(file.path(path_results, "basic-bam", "flagstat.tsv"), header=T, sep= "\t", check.names = F)
-qc$secondary = unlist(qc_plus[qc_plus$measure=="secondary",as.character(qc$sample)])
-qc$singletons = unlist(qc_plus[qc_plus$measure=="singletons",as.character(qc$sample)])
 ```
 
 ### Mean quality along read
@@ -160,7 +156,7 @@ ggplot(qc, aes(x=sample, y=offtarget/Mapped_reads)) +
 
 ```{r table, results='asis'}
 metrics = c("sample", "Total_reads" ,"Mapped_reads_pct", "Duplicates_pct",
-            "singletons", "secondary", "offtarget",
+            "offtarget",
             "%GC", "Sequence_length", "Median_insert_size")
 qc$offtarget = qc$offtarget/qc$Total_reads
 qc$secondary = qc$secondary/qc$Total_reads
@@ -239,16 +235,15 @@ do.call(grid.arrange, list_p)
 ```{r total-coverage-load}
 get_quantile_cov = function(path){
     cov_tab = data.frame()
-    co = c('q10', 'q25', 'q50')
-    for (fn in list.files(path, pattern = "_cov.tsv", full.names = TRUE)){
+    for (fn in list.files(path, pattern = "_coverage.bed", full.names = TRUE)){
             d = read.table(fn, header=T, sep="\t")
-            for (i in 1:3){
+            for (i in c("q10", "q20", "q50")){
                 # q = quantile(d[,i],c(.10,.25,.50,.75,.90))
                 q = quantile(d[,i],c(0.01,.10,.25,.50,.75,.90,.99))
                 labels=factor(rev(names(q)),levels=c("1%","10%","25%","50%","75%","90%","99%"))
 
-                s = gsub("-ready","",d[1,6])
-                t = data.frame(quantiles=q*100, type=labels, sample=s, min_reads=co[i])
+                s = gsub("-ready","",d[1,"sample"])
+                t = data.frame(quantiles=q*100, type=labels, sample=s, min_reads=i)
                 cov_tab = rbind(cov_tab, t)
             }
 
@@ -326,13 +321,12 @@ kable(cov_tab %>% filter(type == "90%") %>%
 
 ### coverage uniformity
 
-Sampling 1000 regions from the target bed file.
 
 ```{r cov-uniformity-load}
 cov_tab = data.frame()
 
 get_bias_cov = function(path){
-    for (fn in list.files(path, pattern = "_bias.tsv", full.names = TRUE)){
+    for (fn in list.files(path, pattern = "_cov.tsv", full.names = TRUE)){
             d = read.table(fn, header=T, sep="\t")
 
             cv = d[,"std"]/d[,"mean"]
