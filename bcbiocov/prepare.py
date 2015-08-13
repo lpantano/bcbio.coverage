@@ -1,6 +1,8 @@
 from collections import defaultdict
 import pandas as pd
 import string
+import shutil
+import glob
 
 import os.path as op
 from bcbio.distributed.transaction import file_transaction
@@ -14,17 +16,29 @@ from bcbiocov.select import save_multiple_regions_coverage
 from bcbiocov import basic
 from bcbiocov.fastqc import merge_fastq
 
+def _get_template(temp):
+    template =  op.normpath(op.join(op.dirname(op.realpath(__file__)), temp + ".Rmd"))
+    return open(template).read()
+
 def report(out_dir):
     """
     create rmd template
     """
-    out_dir = safe_makedir(out_dir)
-    template = op.normpath(op.join(op.dirname(op.realpath(__file__)), "report.Rmd"))
-    content = open(template).read()
-    out_content = string.Template(content).safe_substitute({'path_results': op.abspath(".")})
+    content = _get_template("header")
+    out_content = string.Template(content).safe_substitute({'path_results': op.abspath(out_dir)})
     out_file = op.join(out_dir, "report-ready.Rmd")
     with open(out_file, 'w') as out_handle:
         print >>out_handle, out_content
+
+        if file_exists(op.join(out_dir, "qsignature.ma")):
+            print >>out_handle, _get_template("qsignature")
+
+        print >>out_handle, _get_template("qc")
+
+        if glob.glob(op.join(out_dir, "coverage")):
+            print >>out_handle, _get_template("regions")
+        if glob.glob(op.join(out_dir, "variants")):
+            print >>out_handle, _get_template("variants")
 
 def _bcbio_metrics(yaml_data):
     """
@@ -106,6 +120,6 @@ def bcbio_complete(run_parallel, samples, summary, dirs, qsignature=None, region
     # bias_exome_coverage(data, new_args)
 
 
-    print "doing report"
+    # print "doing report"
     report("report")
     return samples

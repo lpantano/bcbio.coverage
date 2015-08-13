@@ -1,0 +1,13 @@
+
+
+## samples similarity
+
+Samples with less than 5% of similarity. It should show samples more similar than a first degree relative. Or technical replicate with different library preparation or exactly the same sample if score is 0.
+
+```{r qsignature, results='asis'}
+sim = read.table(file.path(path_results, "qsignature.ma"))
+names(sim) = c("sample1" , "sample2", "score")
+
+kable(sim %>% filter(score<0.1) %>% arrange(score))
+
+```

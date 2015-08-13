@@ -1,0 +1,136 @@
+
+# Coverage in regions
+
+```{r total-coverage-load}
+get_quantile_cov = function(path){
+    cov_tab = data.frame()
+    for (fn in list.files(path, pattern = "_coverage.bed", full.names = TRUE)){
+            d = read.table(fn, header=T, sep="\t", comment.char = "%")
+            for (i in c("q10", "q20", "q50")){
+                # q = quantile(d[,i],c(.10,.25,.50,.75,.90))
+                q = quantile(d[,i],c(0.01,.10,.25,.50,.75,.90,.99))
+                labels=factor(rev(names(q)),levels=c("1%","10%","25%","50%","75%","90%","99%"))
+
+                s = gsub("-ready","",d[1,"sample"])
+                t = data.frame(quantiles=q*100, type=labels, sample=s, min_reads=i)
+                cov_tab = rbind(cov_tab, t)
+            }
+
+    }
+    cov_tab
+}
+
+
+get_total_cov = function(path){
+    cov_tab = data.frame()
+    for (fn in list.files(path, pattern = "_cov_total.tsv", full.names = TRUE)){
+            d = read.table(fn, header=T, sep="\t")
+            pct = 100 - cumsum(d[,2])/d[,3] * 100
+            s = gsub("-ready","",d[1,4])
+            t = data.frame(depth=d[,1], bases=pct, sample=s)
+            cov_tab = rbind(cov_tab, t)
+    }
+    cov_tab
+}
+
+
+make_total_cov_plots = function(cov_tab){
+    p =ggplot(cov_tab, aes(y=bases, x=depth, group=sample)) +
+        geom_line(size=2, alpha=.5)+
+        theme_bw()+
+        labs(list(y="% of bed file > depth", x="# of reads"))
+    print(p)
+}
+
+make_quantile_plots = function(cov_tab){
+    p1 = ggplot(cov_tab %>% filter(min_reads=='q10'), aes(x=type, y=quantiles,  group=sample)) +
+    geom_line(size=2, alpha=.5)+
+    theme_bw()+
+    labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >10 reads"))
+
+    p2 = ggplot(cov_tab %>% filter(min_reads=='q25'), aes(x=type, y=quantiles,  group=sample)) +
+    geom_line(size=2, alpha=.5)+
+    theme_bw()+
+    labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >25 reads"))
+
+    p3 = ggplot(cov_tab %>% filter(min_reads=='q50'), aes(x=type, y=quantiles, group=sample)) +
+    geom_line(size=2, alpha=.5)+
+    theme_bw()+
+    labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >50 reads"))
+
+    grid.arrange(p1, p2, p3, ncol=1)
+}
+
+```
+
+### coverage distribution (total)
+
+
+```{r cov-total-fig, fig.height=6, fig.width=11, cache=TRUE}
+cov_tab = get_total_cov(file.path(path_results, "coverage"))
+make_total_cov_plots(cov_tab)
+```
+
+## coverage distribution (completeness)
+
+```{r completeness-fig, fig.height=12, fig.width=12, cache=TRUE}
+cov_tab = get_quantile_cov(file.path(path_results, "coverage"))
+make_quantile_plots(cov_tab)
+```
+
+Values at 90% of regions
+
+```{r table-completeness, results='asis'}
+kable(cov_tab %>% filter(type == "90%") %>%
+          spread(min_reads, quantiles) %>%
+          dplyr::select(targets_pct=type, sample, min_10=q10, min_20=q20, min_50=q50), align="c", digits=2)
+
+```
+
+
+## coverage uniformity
+
+
+```{r cov-uniformity-load}
+cov_tab = data.frame()
+
+get_bias_cov = function(path){
+    for (fn in list.files(path, pattern = "_cov.tsv", full.names = TRUE)){
+            d = read.table(fn, header=T, sep="\t")
+
+            cv = d[,"std"]/d[,"mean"]
+            bias = (d[,"ntdow"] + d[,"ntup"])/d[,"size"] * 100
+            s = as.character(gsub("-ready","",d[1,"sample"]))
+            t = data.frame(bias=bias, cv=cv, mean=d[,"mean"], sample=s)
+            cov_tab = rbind(cov_tab, t)
+
+
+    }
+    cov_tab
+}
+
+make_bias_plot = function(cov_tab){
+    p1 = ggplot(cov_tab, aes(x=log2(mean), y=cv)) +
+    geom_point(alpha=0.5) +
+    scale_color_brewer(palette = "Set1") +
+    labs(list(y="coefficient of variation",x="log2(mean coverage)")) +
+    theme_bw() +
+        ggtitle("coverage variation for each target region")
+
+    p2 = ggplot(cov_tab, aes( x=sample,y=bias)) +
+    geom_jitter(alpha=0.5) +
+    scale_color_brewer(palette = "Set1") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(list(y="% of nt with mean-2SD > coverage > mean+2SD ")) +
+        ggtitle("% of nucleotides with extreme\ncoverage inside target regions")
+    # grid.arrange(p1, p2, ncol=1)
+    print(p2)
+}
+```
+
+```{r cov-uniformity-load-agilent, fig.height=12, fig.width=12, cache=TRUE, eval=FALSE, echo=FALSE}
+bias_tab = get_bias_cov(file.path(path_results,"bias"))
+make_bias_plot(bias_tab)
+```
+

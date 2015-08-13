@@ -13,13 +13,13 @@ from bcbiocov import total, variants, basic
 
 def adapt(f):
     @utils.map_wrap
-    def _multi(*args, **kwargs):
-        return f(*args)
+    def _multi(*c_args, **c_kwargs):
+        return f(*c_args)
 
-    def _ipython(*args, **kwargs):
-        args = ipython.unzip_args(args)
-        with _setup_logging(args) as config:
-            return ipython.zip_args(apply(f, *args))
+    def _ipython(*c_args, **c_kwargs):
+        c_args = ipython.unzip_args(c_args)
+        with _setup_logging(c_args) as config:
+            return ipython.zip_args(apply(f, *c_args))
 
     @wraps(f)
     def choose_runner(*args, **kwargs):

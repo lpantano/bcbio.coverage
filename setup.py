@@ -9,7 +9,7 @@ with open("requirements.txt", "r") as f:
 
 
 setup(name='bcbiocov',
-      version='0.99.3',
+      version='0.99.4',
       description='exome coverage calculation',
       # long_description=readme(),
       classifiers=[

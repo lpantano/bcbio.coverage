@@ -1,0 +1,133 @@
+
+
+## quality control metrics
+
+```{r load-metrics}
+qc = read.table(file.path(path_results, "metrics", "metrics.tsv"),
+                header=T, sep="\t", check.names=F,
+                colClasses=list("sample"="character"))
+rownames(qc) = qc$sample
+qc$Mapped_reads_pct = as.numeric(gsub("%", "", qc$Mapped_reads_pct))
+qc$Duplicates_pct = as.numeric(gsub("%", "", qc$Duplicates_pct))
+```
+
+### Mean quality along read
+
+```{r read-qual}
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_quality.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
+qual$sample = as.character(qual$sample)
+
+ggplot(qual, aes(x=Base, y=Mean, group=sample)) +
+    geom_line() +
+    facet_wrap(~sample) +
+    ylim(0,41) +
+    scale_color_brewer(palette = "Set1") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5))+
+    scale_x_discrete(breaks=number_ticks(10))
+```
+
+### Size distribution
+
+```{r read-size}
+qual = read.table(file.path(path_results, "fastqc", "Sequence_Length_Distribution.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
+qual = qual %>% group_by(sample) %>% mutate(total=sum(Count), pct=Count/total)
+
+ggplot(qual , aes(x=Length, y=Count, group=sample)) +
+    geom_line(size=2, alpha=0.5) +
+    scale_color_brewer(palette = "Set1") +
+    theme_bw() +
+    facet_wrap(~sample) +
+    labs(y="# of reads")+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
+    scale_x_discrete(breaks=number_ticks(5))
+```
+
+Length read with more than 25% of the total reads.
+
+```{r r table-size, results='asis'}
+kable(qual %>% filter(pct > 0.25) %>% dplyr::select(Length, sample, pct) %>% spread(Length, pct), align="c", digits=2)
+
+```
+
+### Nucleotide content
+
+```{r read-content}
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
+qual$sample = as.character(qual$sample)
+
+qual$Base = as.numeric(qual$Base)
+
+dd = melt(qual, id.vars = c("Base", "sample"), variable_name = c("nt"))
+
+ggplot(dd, aes(x=Base, y=value, group=sample)) +
+        geom_line(size=2, alpha=0.5) +
+        theme_bw() +
+        ylab("% of nucleotides") +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
+        ylim(10,50) +
+    facet_wrap(~nt)
+
+
+```
+
+Nt in position with > 30% or < 10% of total reads.
+
+```{r table-content, results='asis'}
+kable( melt(qual, id.vars=c("Base", "sample"), variable_name = "nt") %>%
+           filter(value > 30 | value < 10) %>% filter(Base<20) %>%
+           dplyr::select(Base, sample, nt, value) %>%
+           spread(Base, value),
+       align="c", digits=2)
+```
+
+
+### Total reads
+
+```{r total-reads}
+ggplot(qc, aes(x=sample, y=Total_reads/1e6)) +
+    geom_bar(stat = 'identity') +
+    ylab("Million reads") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+### Mapped reads
+
+```{r mapped-reads}
+ggplot(qc, aes(x=sample, y=Mapped_reads/Total_reads)) +
+    geom_bar(stat = 'identity') +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+### Offtarget reads
+
+```{r off-reads}
+ggplot(qc, aes(x=sample, y=offtarget/Mapped_reads)) +
+    geom_bar(stat = 'identity') +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+### Basic metrics by samples
+
+```{r table, results='asis'}
+metrics = c("sample", "Total_reads" ,"Mapped_reads_pct", "Duplicates_pct",
+            "offtarget",
+            "%GC", "Sequence_length", "Median_insert_size")
+qc$offtarget = qc$offtarget/qc$Total_reads
+# qc$secondary = qc$secondary/qc$Total_reads
+# qc$singletons = qc$singletons/qc$Total_reads
+print(kable(qc[, metrics], align="c", digits=2))
+
+```
+
+### Variant metrics by samples
+
+```{r table-variants, results='asis'}
+qc$ratio_het_hom = qc$Variations_heterozygous/qc$Variations_homozygous
+metrics = c("sample", "Variations_total", "Variations_in_dbSNP_pct",
+            "Variations_heterozygous", "Variations_homozygous", "ratio_het_hom", "Transition/Transversion")
+print(kable(qc[, metrics], align="c", digits=2))
+
+```
+
