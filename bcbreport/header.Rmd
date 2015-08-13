@@ -25,6 +25,6 @@ knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png",
                       cache=FALSE, highlight=TRUE, autodep=TRUE, warning=FALSE, error=FALSE,
                       eval=TRUE, fig.width= 9, echo=FALSE,
                       message=FALSE, prompt=TRUE, comment='', fig.cap='', bootstrap.show.code=FALSE)
-render(file.path(path_results, "report", "report-ready.Rmd"))
+render(file.path(path_results, "report-ready.Rmd"))
 ```
 
