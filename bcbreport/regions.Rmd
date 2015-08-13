@@ -99,6 +99,7 @@ make_quantile_region_plots = function(dd, n_samples){
 
 
 ```{r cov-total-fig, fig.height=6, fig.width=11, cache=TRUE}
+n_samples = nrow(qc)
 cov_tab_total = get_total_cov(file.path(path_results, "coverage"))
 make_total_cov_plots(cov_tab_total)
 ```
