@@ -1,3 +1,0 @@
-#!BCBIO_PATH.../anaconda/bin/python
-__file__ = '$PATH_TOexomeCov/scripts/coverage.py'
-exec(compile(open(__file__).read(), __file__, 'exec'))
