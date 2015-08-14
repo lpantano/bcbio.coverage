@@ -62,7 +62,7 @@ qual = read.table(file.path(path_results, "fastqc", "Per_sequence_GC_content.tsv
 qual = qual %>% mutate(pct=Count/total) %>% filter(GC_Content>30 & GC_Content<70) %>% 
    group_by(sample) %>% summarise(pct_in_30_70=sum(pct))
 
-kable(qual %>% filteR(pct_in_30_70 < 0.80))
+kable(qual %>% filter(pct_in_30_70 < 0.80))
 
 ```
 
