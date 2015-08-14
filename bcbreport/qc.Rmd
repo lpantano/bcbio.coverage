@@ -14,14 +14,17 @@ qc$Duplicates_pct = as.numeric(gsub("%", "", qc$Duplicates_pct))
 ### Mean quality along read
 
 ```{r read-qual}
-qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_quality.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_quality.tsv"), header=T, sep= "\t", check.names =T, colClasses=list("sample"="character"))
 qual$sample = as.character(qual$sample)
 
-ggplot(qual, aes(x=Base, y=Mean, group=sample)) +
+ggplot(qual, aes(x=Base, y=Median, group=sample)) +
     geom_line() +
+    geom_line(aes(x=Base, y=Lower_Quartile, group=sample, col="lower_quantile")) +
+    geom_line(aes(x=Base, y=Upper_Quartile, group=sample, col="upper_quantile")) +
+    geom_line(aes(x=Base, y=X10th_Percentile, group=sample, col="10%_quantile")) +
     facet_wrap(~sample) +
     ylim(0,41) +
-    scale_color_brewer(palette = "Set1") +
+    scale_color_brewer("metrics",palette = "Set1") +
     theme_bw() +
     theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5))+
     scale_x_discrete(breaks=number_ticks(10))
@@ -45,10 +48,24 @@ ggplot(qual , aes(x=Length, y=Count, group=sample)) +
 
 Length read with more than 25% of the total reads.
 
-```{r r table-size, results='asis'}
+```{r table-size, results='asis'}
 kable(qual %>% filter(pct > 0.25) %>% dplyr::select(Length, sample, pct) %>% spread(Length, pct), align="c", digits=2)
 
 ```
+
+### GC content
+
+Samples where less than 80% of the reads are inside 30%-70% GC content.
+
+```{r table-gc, results='asis'}
+qual = read.table(file.path(path_results, "fastqc", "Per_sequence_GC_content.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
+qual = qual %>% mutate(pct=Count/total) %>% filter(GC_Content>30 & GC_Content<70) %>% 
+   group_by(sample) %>% summarise(pct_in_30_70=sum(pct))
+
+kable(qual %>% filteR(pct_in_30_70 < 0.80))
+
+```
+
 
 ### Nucleotide content
 
