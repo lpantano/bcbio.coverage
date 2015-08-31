@@ -6,7 +6,7 @@
 figure cut at 100 at the x axis.
 
 ```{r variants-coverage}
-fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "cg-depth-parse.tsv")
+fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "gc-depth-parse.tsv")
 tab = data.frame()
 for (fn in fns){
     dt = read.table(fn, header=T,sep="\t")
@@ -17,7 +17,6 @@ for (fn in fns){
     dt = data.frame(variants_pct=labels, depth=q, sample=dt$sample[1])
     tab = rbind(tab, dt)
 }
-
 
 ggplot(tab, aes(x=depth, y=variants_pct, group=sample)) +
     geom_line(size=2, alpha=.5)+
@@ -32,7 +31,7 @@ ggplot(tab, aes(x=depth, y=variants_pct, group=sample)) +
 rf <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
 r <- rf(32)
 list_p = list()
-fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "cg-depth-parse.tsv")
+fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "gc-depth-parse.tsv")
 for (fn in fns){
     dt = read.table(fn, header=T,sep="\t")
 

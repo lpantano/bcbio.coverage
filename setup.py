@@ -9,7 +9,7 @@ with open("requirements.txt", "r") as f:
 
 
 setup(name='bcbreport',
-      version='0.99.10',
+      version='0.99.11',
       description='report templates for bcbio analysis.',
       # long_description=readme(),
       classifiers=[
@@ -25,6 +25,5 @@ setup(name='bcbreport',
       author_email='lpantano@iscb.org',
       license='MIT',
       packages=find_packages(),
-      install_requires=install_requires,
       include_package_data=True,
       zip_safe=False)
