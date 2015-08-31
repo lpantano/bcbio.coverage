@@ -3,7 +3,6 @@
 ```{r custom}
 library(VariantAnnotation)
 library(ggplot2)
-library(dplyr)
 library(pheatmap)
 library(scales)
 library(gridExtra)
@@ -13,6 +12,7 @@ library(knitr)
 library(tidyr)
 library(reshape)
 library(rmarkdown)
+library(dplyr)
 # library(ggbio)
 number_ticks <- function(n) {function(limits) pretty(limits, n)}
 options(bitmapType = 'cairo')
@@ -51,10 +51,6 @@ qc = read.table(file.path(path_results, "metrics", "metrics.tsv"),
 rownames(qc) = qc$sample
 qc$Mapped_reads_pct = as.numeric(gsub("%", "", qc$Mapped_reads_pct))
 qc$Duplicates_pct = as.numeric(gsub("%", "", qc$Duplicates_pct))
-
-qc_plus= read.table(file.path(path_results, "basic-bam", "flagstat.tsv"), header=T, sep= "\t", check.names = F)
-qc$secondary = unlist(qc_plus[qc_plus$measure=="secondary",as.character(qc$sample)])
-qc$singletons = unlist(qc_plus[qc_plus$measure=="singletons",as.character(qc$sample)])
 ```
 
 ### Mean quality along read
@@ -92,7 +88,7 @@ ggplot(qual , aes(x=Length, y=Count, group=sample)) +
 Length read with more than 25% of the total reads.
 
 ```{r r table-size, results='asis'}
-kable(qual %>% filter(pct > 0.25) %>% select(Length, sample, pct) %>% spread(Length, pct), align="c", digits=2)
+kable(qual %>% filter(pct > 0.25) %>% dplyr::select(Length, sample, pct) %>% spread(Length, pct), align="c", digits=2)
 
 ```
 
@@ -122,11 +118,9 @@ Nt in position with > 30% or < 10% of total reads.
 ```{r table-content, results='asis'}
 kable( melt(qual, id.vars=c("Base", "sample"), variable_name = "nt") %>%
            filter(value > 30 | value < 10) %>% filter(Base<20) %>%
-           select(Base, sample, nt, value) %>%
+           dplyr::select(Base, sample, nt, value) %>%
            spread(Base, value),
        align="c", digits=2)
-
-
 ```
 
 
@@ -160,11 +154,11 @@ ggplot(qc, aes(x=sample, y=offtarget/Mapped_reads)) +
 
 ```{r table, results='asis'}
 metrics = c("sample", "Total_reads" ,"Mapped_reads_pct", "Duplicates_pct",
-            "singletons", "secondary", "offtarget",
+            "offtarget",
             "%GC", "Sequence_length", "Median_insert_size")
 qc$offtarget = qc$offtarget/qc$Total_reads
-qc$secondary = qc$secondary/qc$Total_reads
-qc$singletons = qc$singletons/qc$Total_reads
+# qc$secondary = qc$secondary/qc$Total_reads
+# qc$singletons = qc$singletons/qc$Total_reads
 print(kable(qc[, metrics], align="c", digits=2))
 
 ```
@@ -186,7 +180,7 @@ print(kable(qc[, metrics], align="c", digits=2))
 figure cut at 100 at the x axis.
 
 ```{r variants-coverage}
-fns = list.files(file.path(path_results, "cg"), full.names = TRUE, pattern = "cg-depth-parse.tsv")
+fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "cg-depth-parse.tsv")
 tab = data.frame()
 for (fn in fns){
     dt = read.table(fn, header=T,sep="\t")
@@ -212,7 +206,7 @@ ggplot(tab, aes(x=depth, y=variants_pct, group=sample)) +
 rf <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
 r <- rf(32)
 list_p = list()
-fns = list.files(file.path(path_results, "cg"), full.names = TRUE, pattern = "cg-depth-parse.tsv")
+fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "cg-depth-parse.tsv")
 for (fn in fns){
     dt = read.table(fn, header=T,sep="\t")
 
@@ -239,16 +233,15 @@ do.call(grid.arrange, list_p)
 ```{r total-coverage-load}
 get_quantile_cov = function(path){
     cov_tab = data.frame()
-    co = c('q10', 'q25', 'q50')
-    for (fn in list.files(path, pattern = "_cov.tsv", full.names = TRUE)){
-            d = read.table(fn, header=T, sep="\t")
-            for (i in 1:3){
+    for (fn in list.files(path, pattern = "_coverage.bed", full.names = TRUE)){
+            d = read.table(fn, header=T, sep="\t", comment.char = "%")
+            for (i in c("q10", "q20", "q50")){
                 # q = quantile(d[,i],c(.10,.25,.50,.75,.90))
                 q = quantile(d[,i],c(0.01,.10,.25,.50,.75,.90,.99))
                 labels=factor(rev(names(q)),levels=c("1%","10%","25%","50%","75%","90%","99%"))
 
-                s = gsub("-ready","",d[1,6])
-                t = data.frame(quantiles=q*100, type=labels, sample=s, min_reads=co[i])
+                s = gsub("-ready","",d[1,"sample"])
+                t = data.frame(quantiles=q*100, type=labels, sample=s, min_reads=i)
                 cov_tab = rbind(cov_tab, t)
             }
 
@@ -319,20 +312,19 @@ Values at 90% of regions
 ```{r table-completeness, results='asis'}
 kable(cov_tab %>% filter(type == "90%") %>%
           spread(min_reads, quantiles) %>%
-          select(targets_pct=type, sample, min_10=q10, min_25=q25, min_50=q50), align="c", digits=2)
+          dplyr::select(targets_pct=type, sample, min_10=q10, min_20=q20, min_50=q50), align="c", digits=2)
 
 ```
 
 
 ### coverage uniformity
 
-Sampling 1000 regions from the target bed file.
 
 ```{r cov-uniformity-load}
 cov_tab = data.frame()
 
 get_bias_cov = function(path){
-    for (fn in list.files(path, pattern = "_bias.tsv", full.names = TRUE)){
+    for (fn in list.files(path, pattern = "_cov.tsv", full.names = TRUE)){
             d = read.table(fn, header=T, sep="\t")
 
             cv = d[,"std"]/d[,"mean"]
@@ -370,3 +362,4 @@ make_bias_plot = function(cov_tab){
 bias_tab = get_bias_cov(file.path(path_results,"bias"))
 make_bias_plot(bias_tab)
 ```
+

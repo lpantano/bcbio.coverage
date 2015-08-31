@@ -1,0 +1,30 @@
+
+
+```{r custom}
+library(VariantAnnotation)
+library(ggplot2)
+library(pheatmap)
+library(scales)
+library(gridExtra)
+library(gtools)
+library(RColorBrewer)
+library(knitr)
+library(tidyr)
+library(reshape)
+library(rmarkdown)
+library(dplyr)
+# library(ggbio)
+number_ticks <- function(n) {function(limits) pretty(limits, n)}
+options(bitmapType = 'cairo')
+
+path_results = "$path_results"
+```
+
+```{r create-report, echo=FALSE, eval=FALSE}
+knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png",
+                      cache=FALSE, highlight=TRUE, autodep=TRUE, warning=FALSE, error=FALSE,
+                      eval=TRUE, fig.width= 9, echo=FALSE,
+                      message=FALSE, prompt=TRUE, comment='', fig.cap='', bootstrap.show.code=FALSE)
+render(file.path(path_results, "report-ready.Rmd"))
+```
+
