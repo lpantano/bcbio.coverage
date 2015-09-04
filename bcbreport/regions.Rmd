@@ -1,5 +1,8 @@
 
 # Coverage in regions
+Maybe more important than the total number of reads is the coverage information: at what read count is each base (genome-wide or within a target set) covered? For germline calls we need a minimum of ~13X to call heterozygous variants reliably; this number goes up for tumor samples due to purity and clonality confounders. 
+
+If no target region was given we calculate these metrics for a list of 'medically actionable genes' based on the [Personalis ACE Clinical Exome](http://www.personalis.com/clinical/).
 
 ```{r total-coverage-load}
 get_quantile_cov = function(path){
@@ -82,20 +85,18 @@ make_quantile_region_plots = function(dd, n_samples){
     p2 = ggplot(dd %>% group_by(cutoff20) %>% summarise(n_regions = n())  %>% filter(q20<n_samples*0.8), aes(x=n_regions, y=q20)) +
     geom_point(size=2, alpha=.5)+
     theme_bw()+
-    labs(list(x="number of regions", y="num of samples with region covered", title="considered covered when nt has >10 reads. Only looking at regions with < 80% of samples"))
+    labs(list(x="number of regions", y="num of samples with region covered", title="considered covered when nt has >20 reads. Only looking at regions with < 80% of samples"))
 
     p3 = ggplot(dd %>% group_by(cutoff50) %>% summarise(n_regions = n())  %>% filter(q50<n_samples*0.8), aes(x=n_regions, y=q50)) +
     geom_point(size=2, alpha=.5)+
     theme_bw()+
-    labs(list(x="number of regions", y="num of samples with region covered", title="considered covered when nt has >10 reads. Only looking at regions with < 80% of samples"))
+    labs(list(x="number of regions", y="num of samples with region covered", title="considered covered when nt has >50 reads. Only looking at regions with < 80% of samples"))
 
     grid.arrange(p1, p2, p3, ncol=1)
 }
-
-
 ```
 
-### coverage distribution (total) by sample
+### Total coverage by sample
 
 ```{r cov-total-fig, fig.height=6, fig.width=11, cache=TRUE}
 n_samples = nrow(qc)
@@ -103,14 +104,16 @@ cov_tab_total = get_total_cov(file.path(path_results, "coverage"))
 make_total_cov_plots(cov_tab_total)
 ```
 
-## coverage distribution (completeness) by sample
+### Completeness by sample
+
+A more detailed look at the previous plot. For three different cutoffs (at least 10, 25 or 50 reads) check what percentage of target _regions_ are covered with at least that many reads on average (X-axis), and ...
 
 ```{r completeness-fig, fig.height=12, fig.width=12, cache=TRUE}
 cov_tab = get_quantile_cov(file.path(path_results, "coverage"))
 make_quantile_plots(cov_tab$sample)
 ```
 
-Samples where more than 90% of targets have less than 60% covered at completeness cut-off of 10.
+Flagging samples that are problematic. i.e., where more than 90% of target regions have less than 60% covered at completeness cut-off of 10.
 
 ```{r table-completeness, results='asis'}
 kable(cov_tab$sample %>% filter(type == "90%") %>%
@@ -121,7 +124,7 @@ kable(cov_tab$sample %>% filter(type == "90%") %>%
 
 ```
 
-## coverage distribution (completeness) by region
+### Completeness by region
 
 ```{r completeness-region-fig, fig.height=12, fig.width=12, cache=TRUE}
 make_quantile_region_plots(cov_tab$region, n_samples)
@@ -132,7 +135,7 @@ Regions where less than 60% of samples covered at completeness cut-off of 10.
 ```{r table-completeness-regions, results='asis'}
 n_samples = nrow(qc)
 kable(head(cov_tab$region %>% mutate(region=row.names(cov_tab$region)) %>% 
-      dplyr::select(region, cutoff10,cutoff20,cutoff50) %>% filter(cutoff10 < n_samples*0.6),50), 
+      dplyr::select(region, cutoff10, cutoff20, cutoff50) %>% filter(cutoff10 < n_samples*0.6),50), 
       align="c", digits=2)
 write.table(cov_tab$region, file.path(path_results, "completeness_by_region_and_sample.tsv"))
 ```
@@ -140,7 +143,7 @@ write.table(cov_tab$region, file.path(path_results, "completeness_by_region_and_
 
 
 ```{r cov-uniformity-load, echo=FALSE, eval=FALSE}
-## coverage uniformity
+## Coverage uniformity
 
 cov_tab = data.frame()
 

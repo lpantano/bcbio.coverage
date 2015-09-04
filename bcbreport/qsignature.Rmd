@@ -1,12 +1,15 @@
 
+Various quality metrics generated as part of a bcbio workflow. While these are useful to get a general sense of the overall quality we still recommend exploring at least a subset of the underlying data manually to check for outliers or details that might be obscured by summarizing across all samples. 
 
-## samples similarity
+## Samples similarity
 
-Samples with less than 5% of similarity. It should show samples more similar than a first degree relative. Or technical replicate with different library preparation or exactly the same sample if score is 0.
+A quick sanity check to detect samples that are considered 'identical'. This could be due to technical / biological replicates, tumor / normal pairing or samples picked from members of the same family. By default we highlight samples that have more than 5% similarity as based on identical variant calls (the [`qSignature` method](http://sourceforge.net/p/adamajava/wiki/qSignature/)) which should highlight samples that are a first degree relative or a replicate. 
 
 ```{r qsignature, results='asis'}
 sim = read.table(file.path(path_results, "qsignature.ma"))
 names(sim) = c("sample1" , "sample2", "score")
+
+ggplot(data = sim, aes(x=sample1, y=sample2, fill=score)) + geom_tile()
 
 kable(sim %>% filter(score<0.1) %>% arrange(score))
 
