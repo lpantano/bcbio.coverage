@@ -5,6 +5,13 @@ A quick summary of sample metrics to identify outliers. Offtargets will be set t
 
 
 ```{r table, results='asis'}
+qc = read.table(file.path(path_results, "metrics", "metrics.tsv"),
+                header=T, sep="\t", check.names=F,
+                colClasses=list("sample"="character"))
+rownames(qc) = qc$sample
+qc$Mapped_reads_pct = as.numeric(gsub("%", "", qc$Mapped_reads_pct))
+qc$Duplicates_pct = as.numeric(gsub("%", "", qc$Duplicates_pct))
+
 metrics = c("sample", "Total_reads" ,"Mapped_reads_pct", "Duplicates_pct",
             "offtarget",
             "%GC", "Sequence_length", "Median_insert_size")
@@ -54,15 +61,6 @@ ggplot(qc, aes(x=sample, y=offtarget/Mapped_reads)) +
 ## Sequencing metrics
 
 Various metrics related to the quality of the sequencing data itself, i.e., the FASTQ or BAM fie as it came off the sequencer. 
-
-```{r load-metrics}
-qc = read.table(file.path(path_results, "metrics", "metrics.tsv"),
-                header=T, sep="\t", check.names=F,
-                colClasses=list("sample"="character"))
-rownames(qc) = qc$sample
-qc$Mapped_reads_pct = as.numeric(gsub("%", "", qc$Mapped_reads_pct))
-qc$Duplicates_pct = as.numeric(gsub("%", "", qc$Duplicates_pct))
-```
 
 ### Mean sequence quality along read
 
@@ -142,7 +140,7 @@ qual$sample = as.character(qual$sample)
 qual$Base = as.numeric(qual$Base)
 dd = melt(qual, id.vars = c("Base", "sample"), variable_name = c("nt"))
 
-ggplot(dd %>% filteR(nt!="total"), aes(x=Base, y=value, group=sample)) +
+ggplot(dd %>% filter(nt!="total"), aes(x=Base, y=value, group=sample)) +
         geom_line(size=2, alpha=0.5) +
         theme_bw() +
         ylab("% of nucleotides") +

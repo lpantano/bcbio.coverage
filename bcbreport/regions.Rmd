@@ -1,5 +1,6 @@
 
 # Coverage in regions
+
 Maybe more important than the total number of reads is the coverage information: at what read count is each base (genome-wide or within a target set) covered? For germline calls we need a minimum of ~13X to call heterozygous variants reliably; this number goes up for tumor samples due to purity and clonality confounders. 
 
 If no target region was given we calculate these metrics for a list of 'medically actionable genes' based on the [Personalis ACE Clinical Exome](http://www.personalis.com/clinical/).
@@ -21,7 +22,7 @@ get_quantile_cov = function(path){
                 
                 
             }
-            ma = (d %>% dplyr::select(q10, q20, q50)) > 0.60
+            ma = (d %>% dplyr::select(cutoff10, cutoff20, cutoff50)) > 0.60
             if (nrow(cov_regions) == 0){
               cov_regions = ma
             }else{
@@ -39,7 +40,8 @@ get_total_cov = function(path){
     for (fn in list.files(path, pattern = "_cov_total.tsv", full.names = TRUE)){
             d = read.table(fn, header=F, sep="\t")
             d = d[order(d[,1]),]
-            pct = cumsum(d[,2])/d[,3] * 100
+            print(head(d,30))
+            pct = rev(cumsum(rev(d[,2]))/sum(d[,2]) * 100)
             s = gsub("-ready","",d[1,4])
             t = data.frame(depth=d[,1], bases=pct, sample=s)
             cov_tab = rbind(cov_tab, t)

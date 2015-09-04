@@ -42,12 +42,13 @@ ggplot(tab, aes(x=depth, y=variants_pct, group=sample)) +
 
 Checking for G/C bias for called variants. This is again capped at 100X coverage; X-axis is G/C content of a read, Y-axis the number of reads supporting a variant, colour reflects the number of variants at that coverage and G/C window. 
 
+
 ```{r variants-coverage-gc, fig.width=15, fig.height=15}
 rf <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
-r <- rf(32)
+r <- c("white", rf(9))
 list_p = list()
 fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "gc-depth-parse.tsv")
-for (fn in fns){
+for (fn in fns[1:2]){
     dt = read.table(fn, header=T,sep="\t")
 
     dt = dt %>% filter(!grepl("[::.::]",depth))
@@ -56,9 +57,10 @@ for (fn in fns){
     p = ggplot(dt, aes(CG, depth)) +
         stat_bin2d() +
         ylab("# of reads") +
-        scale_fill_gradientn(guide = FALSE,colours=r) +
+        scale_fill_gradientn(colours = r, guide = FALSE) + 
         theme_bw() +
         ylim(0, 100) +
+        scale_x_discrete(breaks=seq(0,100,10)) +
         ggtitle(sample)
 
     list_p[[as.character(sample)]]=p
