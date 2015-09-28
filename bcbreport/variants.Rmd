@@ -23,7 +23,7 @@ tab = data.frame()
 for (fn in fns){
     dt = read.table(fn, header=T,sep="\t")
     dt = dt %>% filter(!grepl("[::.::]",depth))
-    dt[,2] = as.numeric(dt[,2])
+    dt[,2] = as.numeric(as.character(dt[,2]))
     q = quantile(dt[,2],c(0,.10,.25,.50,.75,.90,1))
     labels=factor(rev(names(q)),levels=c("0%","10%","25%","50%","75%","90%","100%"))
     dt = data.frame(variants_pct=labels, depth=q, sample=dt$sample[1])
@@ -48,11 +48,11 @@ rf <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
 r <- c("white", rf(9))
 list_p = list()
 fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "gc-depth-parse.tsv")
-for (fn in fns[1:2]){
+for (fn in fns){
     dt = read.table(fn, header=T,sep="\t")
 
     dt = dt %>% filter(!grepl("[::.::]",depth))
-    dt[,2] = as.numeric(dt[,2])
+    dt[,2] = as.numeric(as.character(dt[,2]))
     sample = dt$sample[1]
     p = ggplot(dt, aes(CG, depth)) +
         stat_bin2d() +
