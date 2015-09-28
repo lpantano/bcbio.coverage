@@ -115,15 +115,15 @@ For re-sequencing projects the GC nucleotide content of sequenced reads should f
 
 ```{r table-gc, results='asis'}
 qual = read.table(file.path(path_results, "fastqc", "Per_sequence_GC_content.tsv"), header=T, sep= "\t", check.names = F, colClasses=list("sample"="character"))
-qual$percent <- qual$Count / qual$total
+qual = qual %>% group_by(sample) %>% mutate(total=sum(Count), pct=Count/total)
 
-ggplot(qual, aes(x=GC_Content, y=percent, group=sample)) +
+ggplot(qual, aes(x=GC_Content, y=pct, group=sample)) +
   geom_line(size=2, alpha=0.5) +
   scale_color_brewer(palette = "Set1") +
   theme_bw() +
   labs(y='Percent of reads', x='Percent G/C content')
 
-qual = qual %>% mutate(pct=Count/total) %>% filter(GC_Content>10 & GC_Content<90) %>% 
+qual = qual %>% filter(GC_Content>10 & GC_Content<90) %>% 
    group_by(sample) %>% summarise(pct_in_10_90=sum(pct))
 kable(qual %>% filter(pct_in_10_90 <= 0.95))
 
