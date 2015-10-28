@@ -14,12 +14,14 @@ get_quantile_cov = function(path){
     }
     ma = matrix()
     for (fn in list.files(path, pattern = "_coverage.bed", full.names = TRUE)){
+      if (!grepl("priority", fn)){
             d = read.table(fn, header=T)
             if (nrow(ma)>1){
               ma = ma + (d[,c("percentage10", "percentage20", "percentage50")] > 60 * 1)
             }else{
               ma = as.matrix(d[,c("percentage10", "percentage20", "percentage50")] > 60) * 1 
             }
+      }
             
     }
     cov_regions = cbind(d[,1:5], ma)
