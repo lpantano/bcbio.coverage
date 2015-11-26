@@ -17,7 +17,7 @@ library(dplyr)
 number_ticks <- function(n) {function(limits) pretty(limits, n)}
 options(bitmapType = 'cairo')
 
-path_results = "$path_results"
+path_results = getwd()
 ```
 
 ```{r create-report, echo=FALSE, eval=FALSE}
