@@ -7,19 +7,21 @@ get_quantile_cov = function(path){
     cov_regions = data.frame()
     for (fn in list.files(path, pattern = "_coverage_summary.bed", full.names = TRUE)){
             d = read.table(fn, header=T, sep="\t", comment.char = "%")
-            
-            d$region_pct = 100-d$region_pct
-            cov_tab = rbind(cov_tab, d)
-            
+            if (nrow(d) >0 ){
+              d$region_pct = 100-d$region_pct
+              cov_tab = rbind(cov_tab, d)
+            }
     }
     ma = matrix()
     for (fn in list.files(path, pattern = "_coverage.bed", full.names = TRUE)){
       if (!grepl("priority", fn)){
             d = read.table(fn, header=T)
-            if (nrow(ma)>1){
-              ma = ma + (d[,c("percentage10", "percentage20", "percentage50")] > 60 * 1)
-            }else{
-              ma = as.matrix(d[,c("percentage10", "percentage20", "percentage50")] > 60) * 1 
+            if (nrow(d) >0 ){
+              if (nrow(ma)>1){
+                ma = ma + (d[,c("percentage10", "percentage20", "percentage50")] > 60) * 1
+              }else{
+                ma = as.matrix(d[,c("percentage10", "percentage20", "percentage50")] > 60) * 1 
+              }
             }
       }
             
@@ -32,24 +34,29 @@ get_total_cov = function(path){
     cov_tab = data.frame()
     for (fn in list.files(path, pattern = "_total_summary.bed", full.names = TRUE)){
             d = read.table(fn, header=T, sep="\t")
-            d[,1] = as.numeric(as.character(gsub("percentage", "", d$cutoff_reads)))
-            d = d[order(d[,1]),]
-            pct = d[,2]
-            t = data.frame(depth=d[,1], bases=pct, sample=d$sample[1])
-            cov_tab = rbind(cov_tab, t)
+            if (nrow(d) >0 ){
+              d[,1] = as.numeric(as.character(gsub("percentage", "", d$cutoff_reads)))
+              d = d[order(d[,1]),]
+              pct = d[,2]
+              t = data.frame(depth=d[,1], bases=pct, sample=d$sample[1])
+              cov_tab = rbind(cov_tab, t)
+            }
     }
     cov_tab
 }
 
 make_total_cov_plots = function(cov_tab){
+  if (nrow(cov_tab) >0 ){
     p =ggplot(cov_tab, aes(y=bases, x=depth, group=sample)) +
         geom_line(size=2, alpha=.5)+
         theme_bw()+
         labs(list(y="% of bed file > depth", x="# of reads"))
     print(p)
+  }
 }
 
 make_quantile_plots = function(cov_tab){
+  if (nrow(cov_tab) >0 ){
     p1 = ggplot(cov_tab %>% filter(cutoff_reads=='percentage10'), aes(x=region_pct, y=bases_pct,  group=sample)) +
     geom_line(size=2, alpha=.5)+
     theme_bw()+
@@ -66,6 +73,7 @@ make_quantile_plots = function(cov_tab){
     labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >50 reads"))
 
     grid.arrange(p1, p2, p3, ncol=1)
+  }
 }
 
 make_quantile_region_plots = function(dd, n_samples){
