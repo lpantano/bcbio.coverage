@@ -5,13 +5,16 @@
 
 Finally, looking at global metrics for variant calls such as the number of heterozygous calls, transition/transversion ratios, and the read coverage at sites that were called as variants. 
 
-> Unclear whether this is limited to the target / reporting regions or global. I think in general we need to clarify where metrics are a) global, b) limited to target regions, and c) limited to coverage regions.
-
 ```{r table-variants, results='asis'}
-qc$ratio_het_hom = qc$Variations_heterozygous/qc$Variations_homozygous
-metrics = c("sample", "Variations_total", "Variations_in_dbSNP_pct",
-            "Variations_heterozygous", "Variations_homozygous", "ratio_het_hom", "Transition/Transversion")
-print(kable(qc[, metrics], align="c", digits=2))
+if (any(grepl("Variations_heterozygous",colnames(qc)))){
+  qc$ratio_het_hom = qc$Variations_heterozygous/qc$Variations_homozygous
+  metrics = intersect(c("sample", "Variations_total", "Variations_in_dbSNP_pct",
+                        "Variations_heterozygous", "Variations_homozygous", 
+                        "ratio_het_hom", "Transition/Transversion"), colnames(qc))
+  print(kable(qc[, metrics], align="c", digits=2))
+}else{
+  cat("No such information available.")
+}
 ```
 ### Variant coverage
 

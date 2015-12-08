@@ -5,7 +5,7 @@
 get_quantile_cov = function(path){
     cov_tab = data.frame()
     cov_regions = data.frame()
-    for (fn in list.files(path, pattern = "_coverage_summary.bed", full.names = TRUE)){
+    for (fn in list.files(path, pattern = "_coverage_fixed_summary.bed", full.names = TRUE)){
             d = read.table(fn, header=T, sep="\t", comment.char = "%")
             if (nrow(d) >0 ){
               d$region_pct = 100-d$region_pct

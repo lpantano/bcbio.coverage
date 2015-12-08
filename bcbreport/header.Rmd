@@ -1,7 +1,6 @@
 
 
 ```{r custom}
-library(VariantAnnotation)
 library(ggplot2)
 library(pheatmap)
 library(scales)
