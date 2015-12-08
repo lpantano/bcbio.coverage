@@ -13,7 +13,7 @@ get_quantile_cov = function(path){
             }
     }
     ma = matrix()
-    for (fn in list.files(path, pattern = "_coverage.bed", full.names = TRUE)){
+    for (fn in list.files(path, pattern = "_coverage_fixed.bed", full.names = TRUE)){
       if (!grepl("priority", fn)){
             d = read.table(fn, header=T)
             if (nrow(d) >0 ){
@@ -24,7 +24,6 @@ get_quantile_cov = function(path){
               }
             }
       }
-            
     }
     cov_regions = cbind(d[,1:5], ma)
     list("sample" = cov_tab, "region" = as.data.frame(cov_regions))

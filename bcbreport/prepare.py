@@ -27,8 +27,8 @@ def report(out_dir=None):
 
         print >>out_handle, _get_template("qc")
 
-        if glob.glob(op.join(out_dir, "coverage")):
+        if glob.glob(op.join(out_dir, "coverage/*coverage.bed")):
             print >>out_handle, _get_template("regions")
-        if glob.glob(op.join(out_dir, "variants")):
+        if glob.glob(op.join(out_dir, "variants/*tsv")):
             print >>out_handle, _get_template("variants")
 
