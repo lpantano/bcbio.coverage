@@ -9,10 +9,9 @@ library(gtools)
 library(RColorBrewer)
 library(knitr)
 library(tidyr)
-library(reshape)
+library(reshape2)
 library(rmarkdown)
 library(dplyr)
-# library(ggbio)
 number_ticks <- function(n) {function(limits) pretty(limits, n)}
 options(bitmapType = 'cairo')
 
