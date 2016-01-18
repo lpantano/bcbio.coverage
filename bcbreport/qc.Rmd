@@ -52,7 +52,7 @@ ggplot(qc, aes(x=sample, y=Mapped_reads/Total_reads)) +
 In addition to total read count and map-ability it is important to know if the target enrichment (if any) worked, i.e., what percentage of reads are on the amplified or captured regions, and what percentage is considered 'off target'. On target percentages should be uniform and ideally above 50% for most capture methods. 
 
 ```{r off-reads}
-ggplot(qc, aes(x=sample, y=offtarget_pct*100)) +
+ggplot(qc, aes(x=sample, y=offtarget*100)) +
     geom_bar(stat = 'identity') +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
