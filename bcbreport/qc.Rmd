@@ -154,7 +154,7 @@ ggplot(dd %>% filter(nt!="total"), aes(x=Base, y=value, group=sample)) +
 To help trace down possible adapter contamination, missed barcodes or other biases we list for each sample the read positions where any nucleotide is present in either less than 10% or more than 30% of the reads:
 
 ```{r table-content, results='asis'}
-kable( melt(qual, id.vars=c("Base", "sample"), variable_name = "nt") %>%
+kable( melt(qual, id.vars=c("Base", "sample"), variable.name = "nt") %>%
            filter(value > 30 | value < 10) %>% filter(Base<20) %>%
            dplyr::select(Base, sample, nt, value) %>%
            spread(Base, value),
