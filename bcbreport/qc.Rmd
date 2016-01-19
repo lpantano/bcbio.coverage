@@ -138,7 +138,7 @@ qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.t
 qual$sample = as.character(qual$sample)
 
 qual$Base = as.numeric(qual$Base)
-dd = melt(qual, id.vars = c("Base", "sample"), variable_name = c("nt"))
+dd = melt(qual, id.vars = c("Base", "sample"), variable.name = c("nt"))
 
 ggplot(dd %>% filter(nt!="total"), aes(x=Base, y=value, group=sample)) +
         geom_line(size=2, alpha=0.5) +
