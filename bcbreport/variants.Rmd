@@ -52,18 +52,19 @@ r <- c("white", rf(9))
 list_p = list()
 fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "gc-depth-parse.tsv")
 for (fn in fns){
-    dt = read.table(fn, header=T,sep="\t")
+    dt = read.table(fn, header=T,sep="\t", stringsAsFactors = FALSE)
 
     dt = dt %>% filter(!grepl("[::.::]",depth))
     dt[,2] = as.numeric(as.character(dt[,2]))
+    dt[,1] = as.numeric(as.character(dt[,1]))
     sample = dt$sample[1]
     p = ggplot(dt, aes(CG, depth)) +
         stat_bin2d() +
         ylab("# of reads") +
         scale_fill_gradientn(colours = r, guide = FALSE) + 
         theme_bw() +
-        ylim(0, 100) +
-        scale_x_discrete(breaks=seq(0,100,10)) +
+        ylim(0, quantile(dt[,2],.96)) +
+        scale_x_continuous(breaks=seq(0,100,10)) +
         ggtitle(sample)
 
     list_p[[as.character(sample)]]=p
