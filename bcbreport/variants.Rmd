@@ -1,4 +1,5 @@
 
+
 # Coverage in variants
 
 ## Variant QC
@@ -16,6 +17,7 @@ if (any(grepl("Variations_heterozygous",colnames(qc)))){
   cat("No such information available.")
 }
 ```
+
 ### Variant coverage
 
 Another coverage plot, this time limited to positions identified as variants. Read coverage on the X-axis (limited to 100X), percentage of variants with that coverage on the Y-axis. The red line highlights the X=13 cutoff required for somewhat reliable heterogenous variant identification in germline samples.
