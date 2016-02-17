@@ -52,7 +52,7 @@ ggplot(qc, aes(x=sample, y=Mapped_reads/Total_reads)) +
 In addition to total read count and map-ability it is important to know if the target enrichment (if any) worked, i.e., what percentage of reads are on the amplified or captured regions, and what percentage is considered 'off target'. On target percentages should be uniform and ideally above 50% for most capture methods. 
 
 ```{r off-reads}
-ggplot(qc, aes(x=sample, y=offtarget_pct*100)) +
+ggplot(qc, aes(x=sample, y=offtarget*100)) +
     geom_bar(stat = 'identity') +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
@@ -138,7 +138,7 @@ qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.t
 qual$sample = as.character(qual$sample)
 
 qual$Base = as.numeric(qual$Base)
-dd = melt(qual, id.vars = c("Base", "sample"), variable_name = c("nt"))
+dd = melt(qual, id.vars = c("Base", "sample"), variable.name = c("nt"))
 
 ggplot(dd %>% filter(nt!="total"), aes(x=Base, y=value, group=sample)) +
         geom_line(size=2, alpha=0.5) +
@@ -154,7 +154,7 @@ ggplot(dd %>% filter(nt!="total"), aes(x=Base, y=value, group=sample)) +
 To help trace down possible adapter contamination, missed barcodes or other biases we list for each sample the read positions where any nucleotide is present in either less than 10% or more than 30% of the reads:
 
 ```{r table-content, results='asis'}
-kable( melt(qual, id.vars=c("Base", "sample"), variable_name = "nt") %>%
+kable( melt(qual, id.vars=c("Base", "sample"), variable.name = "nt") %>%
            filter(value > 30 | value < 10) %>% filter(Base<20) %>%
            dplyr::select(Base, sample, nt, value) %>%
            spread(Base, value),
