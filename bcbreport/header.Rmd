@@ -8,8 +8,19 @@ output:
     highlight: zenburn
 ---
 
+```{r opt,cache=FALSE}
+library(knitr)
+library(rmarkdown)
+knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png",
+                      cache=FALSE, highlight=TRUE, autodep=TRUE, 
+                      warning=FALSE, error=FALSE,
+                      eval=TRUE, fig.width= 9, echo=FALSE,
+                      verbose=FALSE,
+                      message=FALSE, prompt=TRUE, comment='', fig.cap='', bootstrap.show.code=FALSE)
 
-```{r custom}
+```
+
+```{r custom, results='hide'}
 library(ggplot2)
 library(pheatmap)
 library(scales)
@@ -21,6 +32,8 @@ library(tidyr)
 library(reshape2)
 library(rmarkdown)
 library(dplyr)
+library(DT)
+
 number_ticks <- function(n) {function(limits) pretty(limits, n)}
 options(bitmapType = 'cairo')
 
@@ -28,10 +41,6 @@ path_results = getwd()
 ```
 
 ```{r create-report, echo=FALSE, eval=FALSE}
-knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png",
-                      cache=FALSE, highlight=TRUE, autodep=TRUE, warning=FALSE, error=FALSE,
-                      eval=TRUE, fig.width= 9, echo=FALSE,
-                      message=FALSE, prompt=TRUE, comment='', fig.cap='', bootstrap.show.code=FALSE)
 render(file.path(path_results, "report-ready.Rmd"))
 ```
 

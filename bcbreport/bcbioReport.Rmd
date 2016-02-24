@@ -1,0 +1,650 @@
+---
+title: "QC Report"
+author: "Automatically generated"
+date: "tba"
+output: 
+  html_document:
+    toc: true
+    theme: united
+---
+
+```{r custom}
+library(ggplot2)
+library(pheatmap)
+library(scales)
+library(gridExtra)
+library(gtools)
+library(RColorBrewer)
+library(knitr)
+library(tidyr)
+library(dplyr)
+library(reshape)
+library(rmarkdown)
+library(dplyr)
+library(DT)
+
+number_ticks <- function(n) {function(limits) pretty(limits, n)}
+options(bitmapType = 'cairo')
+
+path_results = getwd()
+```
+
+```{r create-report, echo=FALSE, eval=FALSE}
+knitr::opts_chunk$set(tidy=TRUE, highlight=TRUE, dev="png",
+                      cache=FALSE, highlight=TRUE, autodep=TRUE, warning=FALSE, 
+                      error=FALSE, eval=TRUE, fig.width= 9, echo=FALSE,
+                      message=FALSE, prompt=TRUE, comment='', fig.cap='', 
+                      bootstrap.show.code=FALSE)
+render(file.path(path_results, "report-briTest.Rmd"))
+```
+
+
+## Basic sample metrics
+
+A quick summary of sample metrics to identify outliers. Offtargets will be set to 0 for non-targeted experiments, and table cells are color-coded to indivate deviation from the mean for a given metric. Note that this may be expected depending on the experimental setup.
+
+```{r table, results='asis'}
+qc = read.table(file.path(path_results, "metrics", "metrics.tsv"),
+                header=T, sep="\t", check.names=F,
+                colClasses=list("sample"="character"))
+rownames(qc) = qc$sample
+
+# Define metrics to display
+metrics = c("sample", "Total_reads" ,"Mapped_reads_pct", "Duplicates_pct",
+            "offtarget", "%GC", "Sequence_length", "Median_insert_size")
+
+if (is.null(qc$offtarget)) {
+  qc$offtarget <- rep  (0, length(qc$sample))
+} else {
+  qc$offtarget = qc$offtarget/qc$Total_reads
+}
+
+# Adjust some of the text information for formatting purposes
+qc_table <- qc[, metrics]
+
+qc_table$Mapped_reads_pct = as.numeric(gsub("%", "", qc_table$Mapped_reads_pct))
+qc_table$Mapped_reads_pct <- qc_table$Mapped_reads_pct / 100
+
+qc_table$Duplicates_pct = as.numeric(gsub("%", "", qc_table$Duplicates_pct))
+qc_table$Duplicates_pct <- qc_table$Duplicates_pct / 100
+
+# Calculate mean and SD where appropriate
+datatable(qc_table,
+          rownames=FALSE,
+          options=list(dom = 'tp',
+                       pageLength = length(qc_table$sample))) %>%
+  formatPercentage('Mapped_reads_pct', 1) %>%
+  formatPercentage('Duplicates_pct', 1) %>%
+  formatPercentage('offtarget', 1) %>%
+  formatStyle('Total_reads',
+              backgroundColor = styleInterval(c(mean(qc_table$Total_reads) -
+                                                  2 * sd(qc_table$Total_reads),
+                                                mean(qc_table$Total_reads) -
+                                                  sd(qc_table$Total_reads),
+                                                mean(qc_table$Total_reads)),
+                                              c('#f03b20',
+                                                '#feb24c',
+                                                '#ffeda0',
+                                                'white'))) %>%
+  formatStyle('Mapped_reads_pct',
+              backgroundColor = styleInterval(c(mean(qc_table$Mapped_reads_pct) - 
+                                                  2 * sd(qc_table$Mapped_reads_pct),
+                                                mean(qc_table$Mapped_reads_pct) -
+                                                  sd(qc_table$Mapped_reads_pct),
+                                                mean(qc_table$Mapped_reads_pct)),
+                                              c('#f03b20',
+                                                '#feb24c',
+                                                '#ffeda0',
+                                                'white'))) %>%
+  formatStyle('Duplicates_pct',
+              backgroundColor = styleInterval(c(mean(qc_table$Duplicates_pct),
+                                                mean(qc_table$Duplicates_pct) +
+                                                  sd(qc_table$Duplicates_pct),
+                                                mean(qc_table$Duplicates_pct) + 
+                                                  2 * sd(qc_table$Duplicates_pct)),
+                                              c('white',
+                                                '#ffeda0',
+                                                '#feb24c',
+                                                '#f03b20'
+                                                ))) %>%
+    formatStyle('%GC',
+              backgroundColor = styleInterval(c(mean(qc_table$"%GC") - 
+                                                  2 * sd(qc_table$"%GC"),
+                                                mean(qc_table$"%GC") -
+                                                  sd(qc_table$"%GC"),
+                                                mean(qc_table$"%GC") +
+                                                  sd(qc_table$"%GC"),
+                                                mean(qc_table$"%GC") + 
+                                                  2 * sd(qc_table$"%GC")),
+                                              c('#feb24c',
+                                                '#ffeda0',
+                                                'white',
+                                                '#ffeda0',
+                                                '#feb24c'
+                                                ))) %>%
+  formatStyle('offtarget',
+              backgroundColor = styleInterval(c(mean(qc_table$offtarget),
+                                                mean(qc_table$offtarget) + 
+                                                  sd(qc_table$offtarget),
+                                                mean(qc_table$offtarget) +
+                                                  2 * sd(qc_table$offtarget)),
+                                              c('white',
+                                                '#ffeda0',
+                                                '#feb24c',
+                                                '#f03b20'
+                                                ))) %>%
+  formatStyle('Median_insert_size',
+              backgroundColor = styleInterval(c(mean(qc_table$Median_insert_size) - 
+                                                  2 * sd(qc_table$Median_insert_size),
+                                                mean(qc_table$Median_insert_size) -
+                                                  sd(qc_table$Median_insert_size),
+                                                mean(qc_table$Median_insert_size) +
+                                                  sd(qc_table$Median_insert_size),
+                                                mean(qc_table$Median_insert_size) + 
+                                                  2 * sd(qc_table$Median_insert_size)),
+                                              c('#feb24c',
+                                                '#ffeda0',
+                                                'white',
+                                                '#ffeda0',
+                                                '#feb24c'
+                                                )))
+
+```
+
+
+### Total and mapped reads
+
+The next two plots compare the number of reads in each sample (should be uniform) and the percentage of reads mapping to the reference genome. Low mapping rates are indicative of sample contamination, poor sequencing quality or other artifacts.
+
+
+```{r total-reads}
+ggplot(qc, aes(x=sample, y=(Total_reads)/1e6)) +
+    geom_bar(stat = 'identity') +
+    ylab("Million reads") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+```{r mapped-reads}
+ggplot(qc, aes(x=sample, y=Mapped_reads/Total_reads)) +
+    geom_bar(stat = 'identity') +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+The _effective_ number of reads is the total number of mapped read adjusted for duplicates; a high duplicate rate can reduce the overall coverage that will contribute to variant calling processes:
+
+```{r effective-reads}
+ggplot(qc, aes(x=sample, y=(Total_reads-Duplicates)/1e6)) +
+    geom_bar(stat = 'identity') +
+    ylab("Million reads") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+### Offtarget reads
+
+In addition to total read count and map-ability it is important to know if the target enrichment (if any) worked, i.e., what percentage of reads are on the amplified or captured regions, and what percentage is considered 'off target'. On target percentages should be uniform and ideally above 50% for most capture methods. 
+
+```{r off-reads}
+ggplot(qc, aes(x=sample, y=offtarget_pct*100)) +
+    geom_bar(stat = 'identity') +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+
+## Sequencing metrics
+
+Various metrics related to the quality of the sequencing data itself, i.e., the FASTQ or BAM fie as it came off the sequencer. 
+
+### Mean sequence quality along read
+
+Mean base quality for each sample along with the upper and lower quartile, and the 10% (lower) quantile. A slight dropoff towards the end of the read is normal, but you want the mean qualities and quartiles to track each other closely with relatively few outliers. In addition, all plots should look similar to each other.
+
+
+```{r read-qual}
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_quality.tsv"), 
+                  header=T, sep= "\t", check.names =T, 
+                  colClasses=list("sample"="character"))
+qual$sample = as.character(qual$sample)
+
+ggplot(qual, aes(x=Base, y=Median, group=sample)) +
+    geom_line() +
+    geom_line(aes(x=Base, y=Lower_Quartile, group=sample, col="lower_quantile")) +
+    geom_line(aes(x=Base, y=Upper_Quartile, group=sample, col="upper_quantile")) +
+    geom_line(aes(x=Base, y=X10th_Percentile, group=sample, col="10%_quantile")) +
+    facet_wrap(~sample) +
+    ylim(0,45) +
+    scale_color_brewer("metrics",palette = "Set1") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5))+
+    scale_x_discrete(breaks=number_ticks(10))
+```
+
+### Read length distribution
+
+This should ideally be uniform across all samples with one distinct read length dominating the distribution.
+
+```{r read-size}
+qual = read.table(file.path(path_results, "fastqc", "Sequence_Length_Distribution.tsv"), 
+                  header=T, sep= "\t", check.names = F, 
+                  colClasses=list("sample"="character"))
+qual = qual %>% group_by(sample) %>% mutate(total=sum(Count), pct=Count/total)
+
+ggplot(qual , aes(x=Length, y=Count, group=sample)) +
+    geom_line(size=2, alpha=0.5) +
+    scale_color_brewer(palette = "Set1") +
+    theme_bw() +
+    facet_wrap(~sample) +
+    labs(y="# of reads")+
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
+    scale_x_discrete(breaks=number_ticks(5))
+```
+
+The following table lists for each sample the read lengths contributing more than 10% of that sample's total number of reads:
+
+```{r table-size, results='asis'}
+kable(qual %>% filter(pct > 0.10) %>% dplyr::select(Length, sample, pct) %>% spread(Length, pct), align="c", digits=2)
+```
+
+### Read GC content
+
+For re-sequencing projects the GC nucleotide content of sequenced reads should follow the genome distribution. Here we are checking if there are any samples where reads outside of a 10-90% GC content contribute more than 5% of the overall reads. These cutoffs can be tweaked as needed based on the G/C distribution graph:
+
+```{r table-gc, results='asis'}
+qual = read.table(file.path(path_results, "fastqc", "Per_sequence_GC_content.tsv"), 
+                  header=T, sep= "\t", check.names = F, 
+                  colClasses=list("sample"="character"))
+qual = qual %>% group_by(sample) %>% mutate(total=sum(Count), pct=Count/total)
+
+ggplot(qual, aes(x=GC_Content, y=pct, group=sample)) +
+  geom_line(size=2, alpha=0.5) +
+  scale_color_brewer(palette = "Set1") +
+  theme_bw() +
+  labs(y='Percent of reads', x='Percent G/C content')
+
+qual = qual %>% filter(GC_Content>10 & GC_Content<90) %>% 
+   group_by(sample) %>% summarise(pct_in_10_90=sum(pct))
+kable(qual %>% filter(pct_in_10_90 <= 0.95))
+
+```
+
+### Read nucleotide content
+
+Expanding on the GC read content analysis this checks for biases in nucleotide content along the position in the read. Typically, biases are introduced to due preferential (non-random) primer binding (at the beginning of the read) or other artifacts; strong biases are indicative of technical problems:
+
+```{r read-content}
+qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.tsv"),
+                  header=T, sep= "\t", check.names = F, 
+                  colClasses=list("sample"="character"))
+qual$sample = as.character(qual$sample)
+
+qual$Base = as.numeric(qual$Base)
+dd = melt(qual, id.vars = c("Base", "sample"), variable_name = c("nt"))
+
+ggplot(dd %>% filter(nt!="total"), aes(x=Base, y=value, group=sample)) +
+        geom_line(size=2, alpha=0.5) +
+        theme_bw() +
+        ylab("% of nucleotides") +
+        theme(axis.text.x = element_text(angle = 90, hjust = 1, vjust=0.5)) +
+        ylim(10,50) +
+    facet_wrap(~nt)
+```
+
+### Read nuceotide biases
+
+To help trace down possible adapter contamination, missed barcodes or other biases we list for each sample the read positions where any nucleotide is present in either less than 10% or more than 30% of the reads:
+
+```{r table-content, results='asis'}
+kable( melt(qual, id.vars=c("Base", "sample"), variable_name = "nt") %>%
+           filter(value > 30 | value < 10) %>% filter(Base<20) %>%
+           dplyr::select(Base, sample, nt, value) %>%
+           spread(Base, value),
+       align="c", digits=2)
+```
+
+
+## Coverage in regions
+
+```{r total-coverage-load}
+get_quantile_cov = function(path){
+    cov_tab = data.frame()
+    cov_regions = data.frame()
+    for (fn in list.files(path, pattern = "_coverage_fixed_summary.bed", full.names = TRUE)){
+            d = read.table(fn, header=T, sep="\t", comment.char = "%")
+            if (nrow(d) >0 ){
+              d$region_pct = 100-d$region_pct
+              cov_tab = rbind(cov_tab, d)
+            }
+    }
+    ma = matrix()
+    for (fn in list.files(path, pattern = "_coverage_fixed.bed", full.names = TRUE)){
+      if (!grepl("priority", fn)){
+            d = read.table(fn, header=T)
+            if (nrow(d) >0 ){
+              if (nrow(ma)>1){
+                ma = ma + (d[,c("percentage10", "percentage20", "percentage50")] > 60) * 1
+              }else{
+                ma = as.matrix(d[,c("percentage10", "percentage20", "percentage50")] > 60) * 1 
+              }
+            }
+      }
+    }
+    cov_regions = cbind(d[,1:5], ma)
+    list("sample" = cov_tab, "region" = as.data.frame(cov_regions))
+}
+
+get_total_cov = function(path){
+    cov_tab = data.frame()
+    for (fn in list.files(path, pattern = "_total_summary.bed", full.names = TRUE)){
+            d = read.table(fn, header=T, sep="\t")
+            if (nrow(d) >0 ){
+              d[,1] = as.numeric(as.character(gsub("percentage", "", d$cutoff_reads)))
+              d = d[order(d[,1]),]
+              pct = d[,2]
+              t = data.frame(depth=d[,1], bases=pct, sample=d$sample[1])
+              cov_tab = rbind(cov_tab, t)
+            }
+    }
+    cov_tab
+}
+
+make_total_cov_plots = function(cov_tab){
+  if (nrow(cov_tab) >0 ){
+    p =ggplot(cov_tab, aes(y=bases, x=depth, group=sample)) +
+        geom_line(size=2, alpha=.5)+
+        theme_bw()+
+        labs(list(y="% of bed file > depth", x="# of reads"))
+    print(p)
+  }
+}
+
+make_quantile_plots = function(cov_tab){
+  if (nrow(cov_tab) >0 ){
+    p1 = ggplot(cov_tab %>% filter(cutoff_reads=='percentage10'), aes(x=region_pct, y=bases_pct,  group=sample)) +
+    geom_line(size=2, alpha=.5)+
+    theme_bw()+
+    labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >10 reads"))
+
+    p2 = ggplot(cov_tab %>% filter(cutoff_reads=='percentage20'), aes(x=region_pct, y=bases_pct,   group=sample)) +
+    geom_line(size=2, alpha=.5)+
+    theme_bw()+
+    labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >20 reads"))
+
+    p3 = ggplot(cov_tab %>% filter(cutoff_reads=='percentage50'), aes(x=region_pct, y=bases_pct,  group=sample)) +
+    geom_line(size=2, alpha=.5)+
+    theme_bw()+
+    labs(list(x="% of target regions with\nmore than X bases covered", y="% of nt covered\ninside the target", title="considered covered when nt has >50 reads"))
+
+    grid.arrange(p1, p2, p3, ncol=1)
+  }
+}
+
+make_quantile_region_plots = function(dd, n_samples){
+    # cov_tab = melt(cov_tab, id.vars="region")
+    
+    p1 = ggplot(dd %>% group_by(percentage10) %>% summarise(n_regions = n())  %>% filter(percentage10<n_samples*0.8), aes(x=n_regions, y=percentage10)) +
+    geom_point(size=2, alpha=.5)+
+    theme_bw()+
+    labs(list(x="number of regions", y="num of samples with region covered", title="considered covered when nt has >10 reads. Only looking at regions with < 80% of samples"))
+
+    p2 = ggplot(dd %>% group_by(percentage20) %>% summarise(n_regions = n())  %>% filter(percentage20<n_samples*0.8), aes(x=n_regions, y=percentage20)) +
+    geom_point(size=2, alpha=.5)+
+    theme_bw()+
+    labs(list(x="number of regions", y="num of samples with region covered", title="considered covered when nt has >10 reads. Only looking at regions with < 80% of samples"))
+
+    p3 = ggplot(dd %>% group_by(percentage50) %>% summarise(n_regions = n())  %>% filter(percentage50<n_samples*0.8), aes(x=n_regions, y=percentage50)) +
+    geom_point(size=2, alpha=.5)+
+    theme_bw()+
+    labs(list(x="number of regions", y="num of samples with region covered", title="considered covered when nt has >10 reads. Only looking at regions with < 80% of samples"))
+
+    grid.arrange(p1, p2, p3, ncol=1)
+}
+
+
+```
+
+### Coverage distribution (total) by sample
+
+
+```{r cov-total-fig, fig.height=6, fig.width=11, cache=TRUE}
+n_samples = nrow(qc)
+cov_tab_total = get_total_cov(file.path(path_results, "coverage"))
+make_total_cov_plots(cov_tab_total)
+```
+
+### Coverage distribution (completeness) by sample
+
+```{r completeness-fig, fig.height=12, fig.width=12, cache=TRUE}
+cov_tab = get_quantile_cov(file.path(path_results, "coverage"))
+make_quantile_plots(cov_tab$sample)
+```
+
+Samples where more than 90% of targets have less than 60% covered at completeness cut-off of 10, 20 or 40x:
+
+```{r table-completeness, results='asis'}
+kable(cov_tab$sample %>% filter(region_pct >= 90) %>%
+          spread(cutoff_reads, bases_pct) %>%
+          dplyr::select(region_pct, sample, percentage10, percentage20, percentage40) %>%
+          dplyr::filter(percentage10<=60),
+      align="c", digits=2)
+```
+
+
+```{r completeness-region-fig, fig.height=12, fig.width=12, cache=TRUE, eval=FALSE}
+### Coverage distribution (completeness) by region
+make_quantile_region_plots(cov_tab$region, n_samples)
+```
+
+
+```{r table-completeness-regions, results='asis',eval=FALSE}
+# Regions where less than 60% of samples covered at completeness cut-off of 10.
+n_samples = nrow(qc)
+kable(head(cov_tab$region %>% filter(percentage10 < n_samples*0.6),50), 
+      align="c", digits=2)
+write.table(cov_tab$region, file.path(path_results, "completeness_by_region_and_sample.tsv"))
+```
+
+
+```{r cov-uniformity-load, echo=FALSE, eval=FALSE}
+### Coverage uniformity
+
+cov_tab = data.frame()
+
+get_bias_cov = function(path){
+    for (fn in list.files(path, pattern = "_cov.tsv", full.names = TRUE)){
+            d = read.table(fn, header=T, sep="\t")
+
+            cv = d[,"std"]/d[,"mean"]
+            bias = (d[,"ntdow"] + d[,"ntup"])/d[,"size"] * 100
+            s = as.character(gsub("-ready","",d[1,"sample"]))
+            t = data.frame(bias=bias, cv=cv, mean=d[,"mean"], sample=s)
+            cov_tab = rbind(cov_tab, t)
+
+
+    }
+    cov_tab
+}
+
+make_bias_plot = function(cov_tab){
+    p1 = ggplot(cov_tab, aes(x=log2(mean), y=cv)) +
+    geom_point(alpha=0.5) +
+    scale_color_brewer(palette = "Set1") +
+    labs(list(y="coefficient of variation",x="log2(mean coverage)")) +
+    theme_bw() +
+        ggtitle("coverage variation for each target region")
+
+    p2 = ggplot(cov_tab, aes( x=sample,y=bias)) +
+    geom_jitter(alpha=0.5) +
+    scale_color_brewer(palette = "Set1") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    labs(list(y="% of nt with mean-2SD > coverage > mean+2SD ")) +
+        ggtitle("% of nucleotides with extreme\ncoverage inside target regions")
+    # grid.arrange(p1, p2, ncol=1)
+    print(p2)
+}
+```
+
+```{r cov-uniformity-fig, fig.height=12, fig.width=12, cache=TRUE, eval=FALSE, echo=FALSE}
+bias_tab = get_bias_cov(file.path(path_results,"bias"))
+make_bias_plot(bias_tab)
+```
+
+### Coverage breakdown by target
+
+For troubleshooting purposes generating a breakdown by region: what percentage of each targeted region is covered at >20X in a given sample?
+
+```{r cov-targets}
+# Import/concat BED coverage files
+file_list <- list.files(path='coverage/', pattern='*_coverage_fixed.bed')
+ 
+for (file in file_list){
+  # if the merged dataset does exist, append to it
+  if (exists("dataset")){
+    temp_dataset <-read.table(file.path('coverage', file), 
+                             header=FALSE, sep="\t", stringsAsFactors=FALSE,
+                             comment.char='#', skip=1)
+    dataset<-rbind(dataset, temp_dataset)
+    rm(temp_dataset)
+  }
+
+  # if the merged dataset doesn't exist, create it
+  if (!exists("dataset")){
+    dataset <- read.table(file.path('coverage', file), header=FALSE, 
+                          sep="\t", stringsAsFactors=FALSE,
+                          comment.char='#', skip=1)
+  }
+}
+
+colnames(dataset) <- c('chrom', 'chromStart', 'chromEnd',
+                       'name', 'readCount', 'meanCoverage',
+                       'percentage1', 'percentage5', 'percentage10',
+                       'percentage20', 'percentage40', 'percentage50',
+                       'percentage60', 'percentage70', 'percentage80',
+                       'percentage100', 'sampleName')
+
+# Replace the name with something more readable
+dataset$gene <- sapply(strsplit(dataset$name, ","), "[[", 1)
+
+# Name of regions are not unique. Come up with new ID
+dataset$region <- paste(dataset$chrom, 
+                        dataset$chromStart, 
+                        dataset$chromEnd,
+                        dataset$gene,
+                        sep='.')
+
+# Re-organise into a matrix format, keeping only the 
+# 20x cutoff
+cutoff <- dataset %>% select(region, sampleName, percentage20) %>% 
+  spread(sampleName, percentage20)
+rowlabels <- cutoff$region
+
+# Remove region information and cast to numeric
+cutoff <- cutoff[, c(2:length(colnames(cutoff)))]
+cutoff <- as.data.frame(lapply(cutoff, as.numeric))
+rownames(cutoff) <- rowlabels
+cutoff$Mean <- rowMeans(cutoff)
+#write.csv(cutoff, file='mean50.csv')
+
+datatable(cutoff,
+          rownames=TRUE) %>%
+  formatRound(c(1:length(colnames(cutoff))), 2) %>%
+  formatStyle(c(1:length(colnames(cutoff))),
+              backgroundColor = styleInterval(c(50, 70, 90),
+                                              c('#f03b20',
+                                                '#feb24c',
+                                                '#ffeda0',
+                                                'white')))
+```
+
+
+
+## Variant QC
+
+### Coverage in variants
+
+Finally, looking at global metrics for variant calls such as the number of heterozygous calls, transition/transversion ratios, and the read coverage at sites that were called as variants. 
+
+```{r table-variants, results='asis'}
+if (any(grepl("Variations_heterozygous",colnames(qc)))){
+  qc$ratio_het_hom = qc$Variations_heterozygous/qc$Variations_homozygous
+  metrics = intersect(c("sample", "Variations_total", "Variations_in_dbSNP_pct",
+                        "Variations_heterozygous", "Variations_homozygous", 
+                        "ratio_het_hom", "Transition/Transversion"), colnames(qc))
+  
+  # Adjust some of the text information for formatting purposes
+  qc$Variations_in_dbSNP_pct <- as.numeric(gsub("%", "", qc$Variations_in_dbSNP_pct))
+  qc$Variations_in_dbSNP_pct <- qc$Variations_in_dbSNP_pct / 100
+
+  datatable(qc[, metrics],
+            rownames=FALSE,
+            options=list(dom = 'tp',
+                         autoWidth=FALSE,
+                         columnDefs = list(list(width = '600px', 
+                                                targets = c(1),
+                                                className = 'dt-right',
+                                                targets=c(1:7))),
+                         pageLength = length(qc$sample))) %>%
+    formatPercentage('Variations_in_dbSNP_pct', 1) %>%
+    formatRound('ratio_het_hom', 2) %>%
+    formatRound('Transition/Transversion', 2)
+}else{
+  cat("No such information available.")
+}
+```
+
+### Variant coverage
+
+Another coverage plot, this time limited to positions identified as variants. Read coverage on the X-axis (limited to 100X), percentage of variants with that coverage on the Y-axis. The red line highlights the X=13 cutoff required for somewhat reliable heterogenous variant identification in germline samples.
+
+```{r variants-coverage}
+fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "gc-depth-parse.tsv")
+tab = data.frame()
+for (fn in fns){
+    dt = read.table(fn, header=T,sep="\t")
+    dt = dt %>% filter(!grepl("[::.::]",depth))
+    dt[,2] = as.numeric(as.character(dt[,2]))
+    q = quantile(dt[,2],c(0,.10,.25,.50,.75,.90,1))
+    labels=factor(rev(names(q)),levels=c("0%","10%","25%","50%","75%","90%","100%"))
+    dt = data.frame(variants_pct=labels, depth=q, sample=dt$sample[1])
+    tab = rbind(tab, dt)
+}
+
+ggplot(tab, aes(x=depth, y=variants_pct, group=sample)) +
+    geom_line(size=2, alpha=.5) +
+    geom_vline(xintercept=13, color='red') +
+    theme_bw() +
+    xlim(0,100) +
+    labs(list(x="# of reads", y="% variants with more than X reads", title="variants coverage"))
+```
+
+### Variant G/C bias
+
+Checking for G/C bias for called variants. This is again capped at 100X coverage; X-axis is G/C content of a read, Y-axis the number of reads supporting a variant, colour reflects the number of variants at that coverage and G/C window. 
+
+```{r variants-coverage-gc, fig.width=15, fig.height=15}
+rf <- colorRampPalette(rev(brewer.pal(11,'Spectral')))
+r <- c("white", rf(9))
+list_p = list()
+fns = list.files(file.path(path_results, "variants"), full.names = TRUE, pattern = "gc-depth-parse.tsv")
+for (fn in fns){
+    dt = read.table(fn, header=T,sep="\t", stringsAsFactors = FALSE)
+
+    dt = dt %>% filter(!grepl("[::.::]",depth))
+    dt[,2] = as.numeric(as.character(dt[,2]))
+    dt[,1] = as.numeric(as.character(dt[,1]))
+    sample = dt$sample[1]
+    p = ggplot(dt, aes(CG, depth)) +
+        stat_bin2d() +
+        ylab("# of reads") +
+        scale_fill_gradientn(colours = r, guide = FALSE) + 
+        theme_bw() +
+        ylim(0, quantile(dt[,2],.96)) +
+        scale_x_continuous(breaks=seq(0,100,10)) +
+        ggtitle(sample)
+
+    list_p[[as.character(sample)]]=p
+}
+
+do.call(grid.arrange, list_p)
+```
+

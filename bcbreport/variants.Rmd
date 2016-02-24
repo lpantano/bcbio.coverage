@@ -1,8 +1,7 @@
 
+# Variant QC
 
-# Coverage in variants
-
-## Variant QC
+## Variant summary
 
 Finally, looking at global metrics for variant calls such as the number of heterozygous calls, transition/transversion ratios, and the read coverage at sites that were called as variants. 
 
@@ -12,13 +11,29 @@ if (any(grepl("Variations_heterozygous",colnames(qc)))){
   metrics = intersect(c("sample", "Variations_total", "Variations_in_dbSNP_pct",
                         "Variations_heterozygous", "Variations_homozygous", 
                         "ratio_het_hom", "Transition/Transversion"), colnames(qc))
-  print(kable(qc[, metrics], align="c", digits=2))
+  
+  # Adjust some of the text information for formatting purposes
+  qc$Variations_in_dbSNP_pct <- as.numeric(gsub("%", "", qc$Variations_in_dbSNP_pct))
+  qc$Variations_in_dbSNP_pct <- qc$Variations_in_dbSNP_pct / 100
+
+  datatable(qc[, metrics],
+            rownames=FALSE,
+            options=list(dom = 'tp',
+                         autoWidth=FALSE,
+                         columnDefs = list(list(width = '600px', 
+                                                targets = c(1),
+                                                className = 'dt-right',
+                                                targets=c(1:7))),
+                         pageLength = length(qc$sample))) %>%
+    formatPercentage('Variations_in_dbSNP_pct', 1) %>%
+    formatRound('ratio_het_hom', 2) %>%
+    formatRound('Transition/Transversion', 2)
 }else{
   cat("No such information available.")
 }
 ```
 
-### Variant coverage
+## Variant coverage
 
 Another coverage plot, this time limited to positions identified as variants. Read coverage on the X-axis (limited to 100X), percentage of variants with that coverage on the Y-axis. The red line highlights the X=13 cutoff required for somewhat reliable heterogenous variant identification in germline samples.
 
@@ -43,7 +58,7 @@ ggplot(tab, aes(x=depth, y=variants_pct, group=sample)) +
     labs(list(x="# of reads", y="% variants with more than X reads", title="variants coverage"))
 ```
 
-### Variant G/C bias
+## Variant G/C bias
 
 Checking for G/C bias for called variants. This is again capped at 100X coverage; X-axis is G/C content of a read, Y-axis the number of reads supporting a variant, colour reflects the number of variants at that coverage and G/C window. 
 

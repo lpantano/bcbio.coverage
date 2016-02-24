@@ -22,10 +22,11 @@ get_quantile_cov = function(path){
               }else{
                 ma = as.matrix(d[,c("percentage10", "percentage20", "percentage50")] > 60) * 1 
               }
+              cov_regions = cbind(d[,1:5], ma)
             }
       }
     }
-    cov_regions = cbind(d[,1:5], ma)
+    
     list("sample" = cov_tab, "region" = as.data.frame(cov_regions))
 }
 
@@ -45,7 +46,7 @@ get_total_cov = function(path){
 }
 
 make_total_cov_plots = function(cov_tab){
-  if (nrow(cov_tab) >0 ){
+  if ( nrow(cov_tab) > 0 ){
     p =ggplot(cov_tab, aes(y=bases, x=depth, group=sample)) +
         geom_line(size=2, alpha=.5)+
         theme_bw()+
@@ -99,7 +100,7 @@ make_quantile_region_plots = function(dd, n_samples){
 
 ```
 
-### coverage distribution (total) by sample
+## Coverage distribution (total) by sample
 
 
 ```{r cov-total-fig, fig.height=6, fig.width=11, cache=TRUE}
@@ -108,14 +109,14 @@ cov_tab_total = get_total_cov(file.path(path_results, "coverage"))
 make_total_cov_plots(cov_tab_total)
 ```
 
-## coverage distribution (completeness) by sample
+## Coverage distribution (completeness) by sample
 
 ```{r completeness-fig, fig.height=12, fig.width=12, cache=TRUE}
 cov_tab = get_quantile_cov(file.path(path_results, "coverage"))
 make_quantile_plots(cov_tab$sample)
 ```
 
-Samples where more than 90% of targets have less than 60% covered at completeness cut-off of 10.
+Samples where more than 90% of targets have less than 60% covered at completeness cut-off of 10, 20 or 40x:
 
 ```{r table-completeness, results='asis'}
 kable(cov_tab$sample %>% filter(region_pct >= 90) %>%
@@ -126,26 +127,24 @@ kable(cov_tab$sample %>% filter(region_pct >= 90) %>%
 
 ```
 
-## coverage distribution (completeness) by region
 
-```{r completeness-region-fig, fig.height=12, fig.width=12, cache=TRUE}
+```{r completeness-region-fig, fig.height=12, fig.width=12, cache=TRUE, eval=FALSE}
 make_quantile_region_plots(cov_tab$region, n_samples)
+### coverage distribution (completeness) by region
 ```
 
-Regions where less than 60% of samples covered at completeness cut-off of 10.
+```{r table-completeness-regions, results='asis', eval=FALSE}
+# Regions where less than 60% of samples covered at completeness cut-off of 10.
 
-```{r table-completeness-regions, results='asis'}
 n_samples = nrow(qc)
 kable(head(cov_tab$region %>% filter(percentage10 < n_samples*0.6),50), 
       align="c", digits=2)
 write.table(cov_tab$region, file.path(path_results, "completeness_by_region_and_sample.tsv"))
 ```
 
-
+```{r cov-uniformity-load, echo=FALSE, eval=FALSE}
 ## coverage uniformity
 
-
-```{r cov-uniformity-load, echo=FALSE, eval=FALSE}
 cov_tab = data.frame()
 
 get_bias_cov = function(path){
@@ -187,4 +186,72 @@ make_bias_plot = function(cov_tab){
 bias_tab = get_bias_cov(file.path(path_results,"bias"))
 make_bias_plot(bias_tab)
 ```
+
+## Coverage breakdown by target
+
+For troubleshooting purposes generating a breakdown by region: what percentage of each targeted region is covered at >20X in a given sample?
+
+```{r cov-targets, eval=nrow(cov_tab$region)<3000}
+# Import/concat BED coverage files
+file_list <- list.files(path='coverage/', pattern='*_coverage_fixed.bed')
+ 
+for (file in file_list){
+  # if the merged dataset does exist, append to it
+  if (exists("dataset")){
+    temp_dataset <-read.table(file.path('coverage', file), 
+                             header=FALSE, sep="\t", stringsAsFactors=FALSE,
+                             comment.char='#', skip=1)
+    dataset<-rbind(dataset, temp_dataset)
+    rm(temp_dataset)
+  }
+
+  # if the merged dataset doesn't exist, create it
+  if (!exists("dataset")){
+    dataset <- read.table(file.path('coverage', file), header=FALSE, 
+                          sep="\t", stringsAsFactors=FALSE,
+                          comment.char='#', skip=1)
+  }
+}
+
+colnames(dataset) <- c('chrom', 'chromStart', 'chromEnd',
+                       'name', 'readCount', 'meanCoverage',
+                       'percentage1', 'percentage5', 'percentage10',
+                       'percentage20', 'percentage40', 'percentage50',
+                       'percentage60', 'percentage70', 'percentage80',
+                       'percentage100', 'sampleName')
+
+# Replace the name with something more readable
+dataset$gene <- sapply(strsplit(dataset$name, ","), "[[", 1)
+
+# Name of regions are not unique. Come up with new ID
+dataset$region <- paste(dataset$chrom, 
+                        dataset$chromStart, 
+                        dataset$chromEnd,
+                        dataset$gene,
+                        sep='.')
+
+# Re-organise into a matrix format, keeping only the 
+# 20x cutoff
+cutoff <- dataset %>% select(region, sampleName, percentage20) %>% 
+  spread(sampleName, percentage20)
+rowlabels <- cutoff$region
+
+# Remove region information and cast to numeric
+cutoff <- cutoff[, c(2:length(colnames(cutoff)))]
+cutoff <- as.data.frame(lapply(cutoff, as.numeric))
+rownames(cutoff) <- rowlabels
+cutoff$Mean <- rowMeans(cutoff)
+#write.csv(cutoff, file='mean50.csv')
+
+datatable(cutoff,
+          rownames=TRUE) %>%
+  formatRound(c(1:length(colnames(cutoff))), 2) %>%
+  formatStyle(c(1:length(colnames(cutoff))),
+              backgroundColor = styleInterval(c(50, 70, 90),
+                                              c('#f03b20',
+                                                '#feb24c',
+                                                '#ffeda0',
+                                                'white')))
+```
+
 

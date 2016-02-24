@@ -1,20 +1,17 @@
 
-## Basic sample metrics
+# Basic sample metrics
 
-A quick summary of sample metrics to identify outliers. Offtargets will be set to 0 for non-targeted experiments:
-
+A quick summary of sample metrics to identify outliers. Offtargets will be set to 0 for non-targeted experiments, and table cells are color-coded to indivate deviation from the mean for a given metric. Note that this may be expected depending on the experimental setup.
 
 ```{r table, results='asis'}
 qc = read.table(file.path(path_results, "metrics", "metrics.tsv"),
                 header=T, sep="\t", check.names=F,
                 colClasses=list("sample"="character"))
 rownames(qc) = qc$sample
-qc$Mapped_reads_pct = as.numeric(gsub("%", "", qc$Mapped_reads_pct))
-qc$Duplicates_pct = as.numeric(gsub("%", "", qc$Duplicates_pct))
 
+# Define metrics to display
 metrics = c("sample", "Total_reads" ,"Mapped_reads_pct", "Duplicates_pct",
-            "offtarget",
-            "%GC", "Sequence_length", "Median_insert_size")
+            "offtarget", "%GC", "Sequence_length", "Median_insert_size")
 
 if (is.null(qc$offtarget)) {
   qc$offtarget <- rep  (0, length(qc$sample))
@@ -22,17 +19,100 @@ if (is.null(qc$offtarget)) {
   qc$offtarget = qc$offtarget/qc$Total_reads
 }
 
-# qc$secondary = qc$secondary/qc$Total_reads
-# qc$singletons = qc$singletons/qc$Total_reads
-print(kable(qc[, metrics], align="c", digits=2))
+# Adjust some of the text information for formatting purposes
+qc_table <- qc[, metrics]
 
+qc_table$Mapped_reads_pct = as.numeric(gsub("%", "", qc_table$Mapped_reads_pct))
+qc_table$Mapped_reads_pct <- qc_table$Mapped_reads_pct / 100
+
+qc_table$Duplicates_pct = as.numeric(gsub("%", "", qc_table$Duplicates_pct))
+qc_table$Duplicates_pct <- qc_table$Duplicates_pct / 100
+
+# Calculate mean and SD where appropriate
+datatable(qc_table,
+          rownames=FALSE,
+          options=list(dom = 'tp',
+                       pageLength = length(qc_table$sample))) %>%
+  formatPercentage('Mapped_reads_pct', 1) %>%
+  formatPercentage('Duplicates_pct', 1) %>%
+  formatPercentage('offtarget', 1) %>%
+  formatStyle('Total_reads',
+              backgroundColor = styleInterval(c(mean(qc_table$Total_reads) -
+                                                  2 * sd(qc_table$Total_reads),
+                                                mean(qc_table$Total_reads) -
+                                                  sd(qc_table$Total_reads),
+                                                mean(qc_table$Total_reads)),
+                                              c('#f03b20',
+                                                '#feb24c',
+                                                '#ffeda0',
+                                                'white'))) %>%
+  formatStyle('Mapped_reads_pct',
+              backgroundColor = styleInterval(c(mean(qc_table$Mapped_reads_pct) - 
+                                                  2 * sd(qc_table$Mapped_reads_pct),
+                                                mean(qc_table$Mapped_reads_pct) -
+                                                  sd(qc_table$Mapped_reads_pct),
+                                                mean(qc_table$Mapped_reads_pct)),
+                                              c('#f03b20',
+                                                '#feb24c',
+                                                '#ffeda0',
+                                                'white'))) %>%
+  formatStyle('Duplicates_pct',
+              backgroundColor = styleInterval(c(mean(qc_table$Duplicates_pct),
+                                                mean(qc_table$Duplicates_pct) +
+                                                  sd(qc_table$Duplicates_pct),
+                                                mean(qc_table$Duplicates_pct) + 
+                                                  2 * sd(qc_table$Duplicates_pct)),
+                                              c('white',
+                                                '#ffeda0',
+                                                '#feb24c',
+                                                '#f03b20'
+                                                ))) %>%
+    formatStyle('%GC',
+              backgroundColor = styleInterval(c(mean(qc_table$"%GC") - 
+                                                  2 * sd(qc_table$"%GC"),
+                                                mean(qc_table$"%GC") -
+                                                  sd(qc_table$"%GC"),
+                                                mean(qc_table$"%GC") +
+                                                  sd(qc_table$"%GC"),
+                                                mean(qc_table$"%GC") + 
+                                                  2 * sd(qc_table$"%GC")),
+                                              c('#feb24c',
+                                                '#ffeda0',
+                                                'white',
+                                                '#ffeda0',
+                                                '#feb24c'
+                                                ))) %>%
+  formatStyle('offtarget',
+              backgroundColor = styleInterval(c(mean(qc_table$offtarget),
+                                                mean(qc_table$offtarget) + 
+                                                  sd(qc_table$offtarget),
+                                                mean(qc_table$offtarget) +
+                                                  2 * sd(qc_table$offtarget)),
+                                              c('white',
+                                                '#ffeda0',
+                                                '#feb24c',
+                                                '#f03b20'
+                                                ))) %>%
+  formatStyle('Median_insert_size',
+              backgroundColor = styleInterval(c(mean(qc_table$Median_insert_size) - 
+                                                  2 * sd(qc_table$Median_insert_size),
+                                                mean(qc_table$Median_insert_size) -
+                                                  sd(qc_table$Median_insert_size),
+                                                mean(qc_table$Median_insert_size) +
+                                                  sd(qc_table$Median_insert_size),
+                                                mean(qc_table$Median_insert_size) + 
+                                                  2 * sd(qc_table$Median_insert_size)),
+                                              c('#feb24c',
+                                                '#ffeda0',
+                                                'white',
+                                                '#ffeda0',
+                                                '#feb24c'
+                                                )))
 ```
 
-
-### Total and mapped reads
+## Total and mapped reads
 
 The next two plots compare the number of reads in each sample (should be uniform) and the percentage of reads mapping to the reference genome. Low mapping rates are indicative of sample contamination, poor sequencing quality or other artifacts.
-
 
 ```{r total-reads}
 ggplot(qc, aes(x=sample, y=Total_reads/1e6)) +
@@ -47,22 +127,29 @@ ggplot(qc, aes(x=sample, y=Mapped_reads/Total_reads)) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-### Offtarget reads
+The _effective_ number of reads is the total number of mapped read adjusted for duplicates; a high duplicate rate can reduce the overall coverage that will contribute to variant calling processes:
+
+```{r effective-reads}
+ggplot(qc, aes(x=sample, y=(Total_reads-Duplicates)/1e6)) +
+    geom_bar(stat = 'identity') +
+    ylab("Million reads") +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+```
+
+## Offtarget reads
 
 In addition to total read count and map-ability it is important to know if the target enrichment (if any) worked, i.e., what percentage of reads are on the amplified or captured regions, and what percentage is considered 'off target'. On target percentages should be uniform and ideally above 50% for most capture methods. 
-
 ```{r off-reads}
 ggplot(qc, aes(x=sample, y=offtarget*100)) +
     geom_bar(stat = 'identity') +
     theme(axis.text.x = element_text(angle = 90, hjust = 1))
 ```
 
-
-## Sequencing metrics
+# Sequencing metrics
 
 Various metrics related to the quality of the sequencing data itself, i.e., the FASTQ or BAM fie as it came off the sequencer. 
 
-### Mean sequence quality along read
+## Mean sequence quality along read
 
 Mean base quality for each sample along with the upper and lower quartile, and the 10% (lower) quantile. A slight dropoff towards the end of the read is normal, but you want the mean qualities and quartiles to track each other closely with relatively few outliers. In addition, all plots should look similar to each other.
 
@@ -84,7 +171,7 @@ ggplot(qual, aes(x=Base, y=Median, group=sample)) +
     scale_x_discrete(breaks=number_ticks(10))
 ```
 
-### Read length distribution
+## Read length distribution
 
 This should ideally be uniform across all samples with one distinct read length dominating the distribution.
 
@@ -109,7 +196,7 @@ kable(qual %>% filter(pct > 0.10) %>% dplyr::select(Length, sample, pct) %>% spr
 
 ```
 
-### Read GC content
+## Read GC content
 
 For re-sequencing projects the GC nucleotide content of sequenced reads should follow the genome distribution. Here we are checking if there are any samples where reads outside of a 10-90% GC content contribute more than 5% of the overall reads. These cutoffs can be tweaked as needed based on the G/C distribution graph:
 
@@ -129,7 +216,7 @@ kable(qual %>% filter(pct_in_10_90 <= 0.95))
 
 ```
 
-### Read nucleotide content
+## Read nucleotide content
 
 Expanding on the GC read content analysis this checks for biases in nucleotide content along the position in the read. Typically, biases are introduced to due preferential (non-random) primer binding (at the beginning of the read) or other artifacts; strong biases are indicative of technical problems:
 
@@ -138,7 +225,7 @@ qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.t
 qual$sample = as.character(qual$sample)
 
 qual$Base = as.numeric(qual$Base)
-dd = melt(qual, id.vars = c("Base", "sample"), variable.name = c("nt"))
+dd = reshape2::melt(qual, id.vars = c("Base", "sample"), variable.name = c("nt"))
 
 ggplot(dd %>% filter(nt!="total"), aes(x=Base, y=value, group=sample)) +
         geom_line(size=2, alpha=0.5) +
@@ -149,12 +236,12 @@ ggplot(dd %>% filter(nt!="total"), aes(x=Base, y=value, group=sample)) +
     facet_wrap(~nt)
 ```
 
-### Read nuceotide biases
+## Read nuceotide biases
 
 To help trace down possible adapter contamination, missed barcodes or other biases we list for each sample the read positions where any nucleotide is present in either less than 10% or more than 30% of the reads:
 
 ```{r table-content, results='asis'}
-kable( melt(qual, id.vars=c("Base", "sample"), variable.name = "nt") %>%
+kable( reshape2::melt(qual, id.vars=c("Base", "sample"), variable.name = "nt") %>%
            filter(value > 30 | value < 10) %>% filter(Base<20) %>%
            dplyr::select(Base, sample, nt, value) %>%
            spread(Base, value),
