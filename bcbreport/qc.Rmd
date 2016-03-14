@@ -11,7 +11,7 @@ rownames(qc) = qc$sample
 
 # Define metrics to display
 metrics = c("sample", "Total_reads" ,"Mapped_reads_pct", "Duplicates_pct",
-            "offtarget", "%GC", "Sequence_length", "Median_insert_size")
+            "offtarget", "%GC", "Sequence_length", "Average_insert_size")
 
 if (is.null(qc$offtarget)) {
   qc$offtarget <- rep  (0, length(qc$sample))
@@ -93,7 +93,7 @@ datatable(qc_table,
                                                 '#feb24c',
                                                 '#f03b20'
                                                 ))) %>%
-  formatStyle('Median_insert_size',
+  formatStyle('Average_insert_size',
               backgroundColor = styleInterval(c(mean(qc_table$Median_insert_size) - 
                                                   2 * sd(qc_table$Median_insert_size),
                                                 mean(qc_table$Median_insert_size) -
