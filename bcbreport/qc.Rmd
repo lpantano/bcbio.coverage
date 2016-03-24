@@ -9,9 +9,17 @@ qc = read.table(file.path(path_results, "metrics", "metrics.tsv"),
                 colClasses=list("sample"="character"))
 rownames(qc) = qc$sample
 
-# Define metrics to display
+# Define metrics to display and fix missing
 metrics = c("sample", "Total_reads" ,"Mapped_reads_pct", "Duplicates_pct",
             "offtarget", "%GC", "Sequence_length", "Average_insert_size")
+missing = setdiff(metrics, colnames(qc))
+if ( length(missing) >0 ){
+    for (col in missing){
+        qc[, col] = 0
+    }
+}
+if ("Median_insert_side" %in% colnames(qc))
+    qc[,"Average_insert_size"] = qc[,"Median_insert_size"]
 
 if (is.null(qc$offtarget)) {
   qc$offtarget <- rep  (0, length(qc$sample))
@@ -94,14 +102,14 @@ datatable(qc_table,
                                                 '#f03b20'
                                                 ))) %>%
   formatStyle('Average_insert_size',
-              backgroundColor = styleInterval(c(mean(qc_table$Median_insert_size) - 
-                                                  2 * sd(qc_table$Median_insert_size),
-                                                mean(qc_table$Median_insert_size) -
-                                                  sd(qc_table$Median_insert_size),
-                                                mean(qc_table$Median_insert_size) +
-                                                  sd(qc_table$Median_insert_size),
-                                                mean(qc_table$Median_insert_size) + 
-                                                  2 * sd(qc_table$Median_insert_size)),
+              backgroundColor = styleInterval(c(mean(qc_table$Average_insert_size) - 
+                                                  2 * sd(qc_table$Average_insert_size),
+                                                mean(qc_table$Average_insert_size) -
+                                                  sd(qc_table$Average_insert_size),
+                                                mean(qc_table$Average_insert_size) +
+                                                  sd(qc_table$Average_insert_size),
+                                                mean(qc_table$Average_insert_size) + 
+                                                  2 * sd(qc_table$Average_insert_size)),
                                               c('#feb24c',
                                                 '#ffeda0',
                                                 'white',
@@ -225,7 +233,7 @@ qual = read.table(file.path(path_results, "fastqc", "Per_base_sequence_content.t
 qual$sample = as.character(qual$sample)
 
 qual$Base = as.numeric(qual$Base)
-dd = reshape2::melt(qual, id.vars = c("Base", "sample"), variable.name = c("nt"))
+dd = reshape2::melt(qual, id.vars = c("Base", "sample")) %>% mutate(nt=variable)
 
 ggplot(dd %>% filter(nt!="total"), aes(x=Base, y=value, group=sample)) +
         geom_line(size=2, alpha=0.5) +
@@ -241,7 +249,8 @@ ggplot(dd %>% filter(nt!="total"), aes(x=Base, y=value, group=sample)) +
 To help trace down possible adapter contamination, missed barcodes or other biases we list for each sample the read positions where any nucleotide is present in either less than 10% or more than 30% of the reads:
 
 ```{r table-content, results='asis'}
-kable( reshape2::melt(qual, id.vars=c("Base", "sample"), variable.name = "nt") %>%
+kable( reshape2::melt(qual, id.vars=c("Base", "sample")) %>%
+           mutate(nt=variable) %>%
            filter(value > 30 | value < 10) %>% filter(Base<20) %>%
            dplyr::select(Base, sample, nt, value) %>%
            spread(Base, value),
