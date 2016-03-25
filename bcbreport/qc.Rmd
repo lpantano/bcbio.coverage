@@ -36,6 +36,42 @@ qc_table$Mapped_reads_pct <- qc_table$Mapped_reads_pct / 100
 qc_table$Duplicates_pct = as.numeric(gsub("%", "", qc_table$Duplicates_pct))
 qc_table$Duplicates_pct <- qc_table$Duplicates_pct / 100
 
+# Init intervals for coloring
+total_reads_intrv = quantile(c(0,qc_table$Total_reads), c(.25,.50,.75))
+mapped_reads_intrv = quantile(c(0,qc_table$Mapped_reads_pct), c(.25,.50,.75))
+duplicated_intrv = quantile(c(0,qc_table$Duplicates_pct), c(.25,.50,.75))
+gc_intrv = c(.1,.30,.70, .9) * 100
+offtarget_intrv = c(.10,.30,.60)
+duplicated_intrv = c(.10,.30,.60)
+fake_insert_size = rnorm(10,mean(qc_table$Average_insert_size))
+insert_size_intrv = c(mean(fake_insert_size) - 2 * sd(fake_insert_size),
+                      mean(fake_insert_size) - sd(fake_insert_size),
+                      mean(fake_insert_size) + sd(fake_insert_size),
+                      mean(fake_insert_size) + 2 * sd(fake_insert_size))
+
+if (nrow(qc_table) > 7){
+    total_reads_intrv = c(mean(qc_table$Total_reads) - 2 * sd(qc_table$Total_reads),
+                          mean(qc_table$Total_reads) - sd(qc_table$Total_reads),
+                          mean(qc_table$Total_reads))
+    mapped_reads_intrv = c(mean(qc_table$Mapped_reads_pct) - 2 * d(qc_table$Mapped_reads_pct),
+                           mean(qc_table$Mapped_reads_pct) -sd(qc_table$Mapped_reads_pct),
+                           mean(qc_table$Mapped_reads_pct))
+    duplicated_intrv = c(mean(qc_table$Duplicates_pct),
+                         mean(qc_table$Duplicates_pct) + sd(qc_table$Duplicates_pct),
+                         mean(qc_table$Duplicates_pct) + 2 * sd(qc_table$Duplicates_pct))
+    gc_intrv = c(mean(qc_table$"%GC") - 2 * sd(qc_table$"%GC"),
+                 mean(qc_table$"%GC") - sd(qc_table$"%GC"),
+                 mean(qc_table$"%GC") + sd(qc_table$"%GC"),
+                 mean(qc_table$"%GC") + 2 * sd(qc_table$"%GC"))
+    offtarget_intrv = c(mean(qc_table$offtarget),
+                        mean(qc_table$offtarget) +  sd(qc_table$offtarget),
+                        mean(qc_table$offtarget) + 2 * sd(qc_table$offtarget))
+    insert_size_intrv = c(mean(qc_table$Average_insert_size) - 2 * sd(qc_table$Average_insert_size),
+                          mean(qc_table$Average_insert_size) - sd(qc_table$Average_insert_size),
+                          mean(qc_table$Average_insert_size) +sd(qc_table$Average_insert_size),
+                          mean(qc_table$Average_insert_size) + 2 * sd(qc_table$Average_insert_size))
+}
+
 # Calculate mean and SD where appropriate
 datatable(qc_table,
           rownames=FALSE,
@@ -45,45 +81,26 @@ datatable(qc_table,
   formatPercentage('Duplicates_pct', 1) %>%
   formatPercentage('offtarget', 1) %>%
   formatStyle('Total_reads',
-              backgroundColor = styleInterval(c(mean(qc_table$Total_reads) -
-                                                  2 * sd(qc_table$Total_reads),
-                                                mean(qc_table$Total_reads) -
-                                                  sd(qc_table$Total_reads),
-                                                mean(qc_table$Total_reads)),
+              backgroundColor = styleInterval(total_reads_intrv,
                                               c('#f03b20',
                                                 '#feb24c',
                                                 '#ffeda0',
                                                 'white'))) %>%
   formatStyle('Mapped_reads_pct',
-              backgroundColor = styleInterval(c(mean(qc_table$Mapped_reads_pct) - 
-                                                  2 * sd(qc_table$Mapped_reads_pct),
-                                                mean(qc_table$Mapped_reads_pct) -
-                                                  sd(qc_table$Mapped_reads_pct),
-                                                mean(qc_table$Mapped_reads_pct)),
+              backgroundColor = styleInterval(mapped_reads_intrv,
                                               c('#f03b20',
                                                 '#feb24c',
                                                 '#ffeda0',
                                                 'white'))) %>%
   formatStyle('Duplicates_pct',
-              backgroundColor = styleInterval(c(mean(qc_table$Duplicates_pct),
-                                                mean(qc_table$Duplicates_pct) +
-                                                  sd(qc_table$Duplicates_pct),
-                                                mean(qc_table$Duplicates_pct) + 
-                                                  2 * sd(qc_table$Duplicates_pct)),
+              backgroundColor = styleInterval(duplicated_intrv,
                                               c('white',
                                                 '#ffeda0',
                                                 '#feb24c',
                                                 '#f03b20'
                                                 ))) %>%
     formatStyle('%GC',
-              backgroundColor = styleInterval(c(mean(qc_table$"%GC") - 
-                                                  2 * sd(qc_table$"%GC"),
-                                                mean(qc_table$"%GC") -
-                                                  sd(qc_table$"%GC"),
-                                                mean(qc_table$"%GC") +
-                                                  sd(qc_table$"%GC"),
-                                                mean(qc_table$"%GC") + 
-                                                  2 * sd(qc_table$"%GC")),
+              backgroundColor = styleInterval(gc_intrv,
                                               c('#feb24c',
                                                 '#ffeda0',
                                                 'white',
@@ -91,25 +108,14 @@ datatable(qc_table,
                                                 '#feb24c'
                                                 ))) %>%
   formatStyle('offtarget',
-              backgroundColor = styleInterval(c(mean(qc_table$offtarget),
-                                                mean(qc_table$offtarget) + 
-                                                  sd(qc_table$offtarget),
-                                                mean(qc_table$offtarget) +
-                                                  2 * sd(qc_table$offtarget)),
+              backgroundColor = styleInterval(offtarget_intrv,
                                               c('white',
                                                 '#ffeda0',
                                                 '#feb24c',
                                                 '#f03b20'
                                                 ))) %>%
   formatStyle('Average_insert_size',
-              backgroundColor = styleInterval(c(mean(qc_table$Average_insert_size) - 
-                                                  2 * sd(qc_table$Average_insert_size),
-                                                mean(qc_table$Average_insert_size) -
-                                                  sd(qc_table$Average_insert_size),
-                                                mean(qc_table$Average_insert_size) +
-                                                  sd(qc_table$Average_insert_size),
-                                                mean(qc_table$Average_insert_size) + 
-                                                  2 * sd(qc_table$Average_insert_size)),
+              backgroundColor = styleInterval(insert_size_intrv,
                                               c('#feb24c',
                                                 '#ffeda0',
                                                 'white',
