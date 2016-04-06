@@ -9,7 +9,7 @@ with open("requirements.txt", "r") as f:
 
 
 setup(name='bcbreport',
-      version='0.99.25',
+      version='0.99.26',
       description='report templates for bcbio analysis.',
       # long_description=readme(),
       classifiers=[
