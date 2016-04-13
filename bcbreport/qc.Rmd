@@ -64,11 +64,11 @@ if (nrow(qc_table) > 7){
                  mean(qc_table$"%GC") + sd(qc_table$"%GC"),
                  mean(qc_table$"%GC") + 2 * sd(qc_table$"%GC"))
     offtarget_intrv = c(mean(qc_table$offtarget),
-                        mean(qc_table$offtarget) +  sd(qc_table$offtarget),
+                        mean(qc_table$offtarget) + sd(qc_table$offtarget),
                         mean(qc_table$offtarget) + 2 * sd(qc_table$offtarget))
     insert_size_intrv = c(mean(qc_table$Average_insert_size) - 2 * sd(qc_table$Average_insert_size),
                           mean(qc_table$Average_insert_size) - sd(qc_table$Average_insert_size),
-                          mean(qc_table$Average_insert_size) +i sd(qc_table$Average_insert_size),
+                          mean(qc_table$Average_insert_size) + sd(qc_table$Average_insert_size),
                           mean(qc_table$Average_insert_size) + 2 * sd(qc_table$Average_insert_size))
 }
 
