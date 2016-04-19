@@ -43,19 +43,25 @@ tab = data.frame()
 for (fn in fns){
     dt = read.table(fn, header=T,sep="\t")
     dt = dt %>% filter(!grepl("[::.::]",depth))
-    dt[,2] = as.numeric(as.character(dt[,2]))
-    q = quantile(dt[,2],c(0,.10,.25,.50,.75,.90,1))
-    labels=factor(rev(names(q)),levels=c("0%","10%","25%","50%","75%","90%","100%"))
-    dt = data.frame(variants_pct=labels, depth=q, sample=dt$sample[1])
-    tab = rbind(tab, dt)
+    if (nrow(dt)>0){
+        dt[,2] = as.numeric(as.character(dt[,2]))
+        q = quantile(dt[,2],c(0,.10,.25,.50,.75,.90,1))
+        labels=factor(rev(names(q)),levels=c("0%","10%","25%","50%","75%","90%","100%"))
+        dt = data.frame(variants_pct=labels, depth=q, sample=dt$sample[1])
+        tab = rbind(tab, dt)    
+    }
+    
 }
-
-ggplot(tab, aes(x=depth, y=variants_pct, group=sample)) +
-    geom_line(size=2, alpha=.5) +
-    geom_vline(xintercept=13, color='red') +
-    theme_bw() +
-    xlim(0,100) +
-    labs(list(x="# of reads", y="% variants with more than X reads", title="variants coverage"))
+if (nrow(tab) >0){
+    ggplot(tab, aes(x=depth, y=variants_pct, group=sample)) +
+        geom_line(size=2, alpha=.5) +
+        geom_vline(xintercept=13, color='red') +
+        theme_bw() +
+        xlim(0,100) +
+        labs(list(x="# of reads", y="% variants with more than X reads", title="variants coverage"))
+}else{
+    cat("\nNot enough data to plot.\n")
+}
 ```
 
 ## Variant G/C bias
