@@ -193,8 +193,12 @@ For troubleshooting purposes generating a breakdown by region: what percentage o
 
 ```{r cov-targets, eval=nrow(cov_tab$region)<3000}
 # Import/concat BED coverage files
-file_list <- list.files(path='coverage/', pattern='*_coverage_fixed.bed')
- 
+# Import/concat BED coverage files
+file_list <- list.files(path=file.path(path_results, "coverage"), pattern='*_coverage_fixed.bed')
+
+if (exists("dataset"))
+    rm("dataset")
+
 for (file in file_list){
   # if the merged dataset does exist, append to it
   if (exists("dataset")){
@@ -207,7 +211,7 @@ for (file in file_list){
 
   # if the merged dataset doesn't exist, create it
   if (!exists("dataset")){
-    dataset <- read.table(file.path('coverage', file), header=FALSE, 
+    dataset <- read.table(file.path(path_results, 'coverage', file), header=FALSE, 
                           sep="\t", stringsAsFactors=FALSE,
                           comment.char='#', skip=1)
   }
@@ -232,7 +236,7 @@ dataset$region <- paste(dataset$chrom,
 
 # Re-organise into a matrix format, keeping only the 
 # 20x cutoff
-cutoff <- dataset %>% dplyr::select(region, sampleName, percentage20) %>% 
+cutoff <- dataset %>% dplyr::select(region, sampleName, percentage20) %>%  distinct(region) %>% 
   spread(sampleName, percentage20)
 rowlabels <- cutoff$region
 
