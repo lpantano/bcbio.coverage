@@ -26,9 +26,10 @@ def report(out_dir=None):
             print >>out_handle, _get_template("qsignature")
 
         print >>out_handle, _get_template("qc")
-        coverage = glob.glob(op.join(out_dir, "coverage/*coverage.bed"))
-        priority = glob.glob(op.join(out_dir, "coverage/*priority.bed"))
-        if len(coverage) > priority:
+        coverage = glob.glob(op.join(out_dir, "coverage/*coverage*.bed"))
+        priority = glob.glob(op.join(out_dir, "coverage/*priority*.bed"))
+        print coverage
+        if len(coverage) > len(priority):
             print >>out_handle, _get_template("regions")
         if glob.glob(op.join(out_dir, "variants/*tsv")):
             print >>out_handle, _get_template("variants")

@@ -232,7 +232,7 @@ dataset$region <- paste(dataset$chrom,
 
 # Re-organise into a matrix format, keeping only the 
 # 20x cutoff
-cutoff <- dataset %>% select(region, sampleName, percentage20) %>% 
+cutoff <- dataset %>% dplyr::select(region, sampleName, percentage20) %>% 
   spread(sampleName, percentage20)
 rowlabels <- cutoff$region
 
